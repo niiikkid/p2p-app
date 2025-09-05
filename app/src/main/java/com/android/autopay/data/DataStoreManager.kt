@@ -21,7 +21,6 @@ class DataStoreManager @Inject constructor(
 
     suspend fun saveSettings(settingsData: SettingsData) {
         context.dataStore.edit { settings ->
-            settings[stringPreferencesKey(URL_KEY)] = settingsData.url
             settings[stringPreferencesKey(TOKEN_KEY)] = settingsData.token
         }
     }
@@ -29,7 +28,7 @@ class DataStoreManager @Inject constructor(
     fun getSettings(): Flow<SettingsData> {
         return context.dataStore.data.map { preferences ->
             SettingsData(
-                url = preferences[stringPreferencesKey(URL_KEY)] ?: DEFAULT_URL,
+                url = DEFAULT_URL,
                 token = preferences[stringPreferencesKey(TOKEN_KEY)] ?: ""
             )
         }

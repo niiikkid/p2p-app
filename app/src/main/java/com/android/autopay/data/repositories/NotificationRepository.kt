@@ -7,6 +7,7 @@ import com.android.autopay.data.local.mappers.toHistoryNotificationDBO
 import com.android.autopay.data.local.mappers.toNotification
 import com.android.autopay.data.local.mappers.toUnsentNotificationDBO
 import com.android.autopay.data.models.Notification
+import com.android.autopay.data.utils.DEFAULT_URL
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -45,7 +46,7 @@ class NotificationRepository @Inject constructor(
 
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
-            .url(settings.url)
+            .url(DEFAULT_URL)
             .headers(headers)
             .post(requestBody)
             .build()

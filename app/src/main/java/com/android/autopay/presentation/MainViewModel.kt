@@ -9,6 +9,7 @@ import com.android.autopay.data.DataStoreManager
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.SettingsData
 import com.android.autopay.data.repositories.NotificationRepository
+import com.android.autopay.data.utils.DEFAULT_URL
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,6 @@ class MainViewModel @Inject constructor(
             val settingsData = dataStoreManager.getSettings().first()
 
             _state.value = state.value.copy(
-                url = settingsData.url,
                 token = settingsData.token,
             )
 
@@ -51,7 +51,8 @@ class MainViewModel @Inject constructor(
                         state.value.notificationStats.copy(
                             receiveAll = notificationHistory.size,
                             lastNotifications = notificationHistory.takeLast(5).reversed()
-                        )
+                        ),
+                        allNotifications = notificationHistory
                     )
                 }
         }
@@ -81,19 +82,9 @@ class MainViewModel @Inject constructor(
 
     fun onIntent(intent: MainContract.Intent) {
         when (intent) {
-            is MainContract.Intent.ChangeUrl -> onChangeUrl(intent)
             is MainContract.Intent.ChangeToken -> onChangeToken(intent)
             is MainContract.Intent.Save -> onSave()
         }
-    }
-
-    private fun onChangeUrl(intent: MainContract.Intent.ChangeUrl) {
-        _state.value = state.value.copy(url = intent.url)
-        updateIsSavePossible()
-
-        _state.value = state.value.copy(
-            isConnected = false
-        )
     }
 
     private fun onChangeToken(intent: MainContract.Intent.ChangeToken) {
@@ -109,7 +100,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val settingsData = dataStoreManager.getSettings().first()
             _state.value = state.value.copy(
-                isSavePossible = state.value.url != settingsData.url || state.value.token != settingsData.token
+                isSavePossible = state.value.token != settingsData.token
             )
         }
     }
@@ -118,7 +109,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             dataStoreManager.saveSettings(
                 SettingsData(
-                    url = state.value.url,
+                    url = DEFAULT_URL,
                     token = state.value.token
                 )
             )
@@ -133,12 +124,12 @@ class MainViewModel @Inject constructor(
 
 object MainContract {
     data class State(
-        val url: String = "",
         val token: String = "",
         val notificationStats: NotificationStats = NotificationStats(),
         val isSavePossible: Boolean = false,
         val isConnected: Boolean = false,
-        val deviceInfo: DeviceInfo = DeviceInfo()
+        val deviceInfo: DeviceInfo = DeviceInfo(),
+        val allNotifications: List<Notification> = emptyList()
     ) {
 
         data class NotificationStats(
@@ -158,7 +149,6 @@ object MainContract {
     }
 
     sealed class Intent {
-        data class ChangeUrl(val url: String) : Intent()
         data class ChangeToken(val token: String) : Intent()
         data object Save : Intent()
     }
