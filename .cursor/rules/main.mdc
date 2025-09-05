@@ -1,0 +1,89 @@
+---
+description: Правила Cursor для p2p-app (AutoPay Android)
+globs: []
+alwaysApply: true
+---
+
+### Cursor Rule: p2p-app (AutoPay Android)
+
+- **Назначение**: приложение собирает входящие SMS и push-уведомления, сохраняет их в локальную историю и отправляет на внешний сервер с ретраями при сбоях.
+- **Парадигма**: Android, Kotlin, Jetpack Compose, MVVM, DI через Hilt, локальное хранилище Room, настройки через DataStore, фоновые ретраи через WorkManager.
+
+### Стек и версии
+- **Kotlin/JVM/SDK**: Kotlin 2.0.0, JVM 17, minSdk 26, targetSdk 34, AGP 8.5.1.
+- **UI**: Jetpack Compose (BOM 2024.06.00), Material3.
+- **DI**: Hilt 2.51.1 (+ Hilt Worker).
+- **Фон**: WorkManager 2.9.0.
+- **Хранилище**: Room 2.6.1 (KSP), DataStore Preferences.
+- **Сеть**: OkHttp 4.12.0.
+- **Манифест**: usesCleartextTraffic=true, NotificationListenerService.
+
+### Архитектура и ключевые узлы
+- **Точка входа**: `com.android.autopay.MainActivity`
+  - Запрашивает разрешения (`RECEIVE_SMS`, доступ к слушателю уведомлений), предлагает отключить оптимизацию батареи.
+  - Запускает foreground-сервис `PushNotificationHandlerService`.
+  - Планирует периодический ретрай `NotificationRetryWorker` (15 мин, при наличии сети).
+- **Сбор входящих событий**:
+  - Push: `com.android.autopay.data.PushNotificationHandlerService` (`NotificationListenerService`)
+    - Игнорирует SMS-пакет по умолчанию и собственный пакет.
+    - Создаёт канал уведомлений, парсит `android.text`, пишет в историю и шлёт на сервер; при неуспехе — в очередь на повтор.
+  - SMS: `com.android.autopay.data.SmsReceiver` (`BroadcastReceiver` на `SMS_RECEIVED_ACTION`)
+    - Склеивает multipart, сохраняет в историю, отправляет; при неуспехе — в очередь на повтор.
+  - Автозапуск: `com.android.autopay.data.BootBroadcastReceiver` стартует сервис после `BOOT_COMPLETED`.
+- **Ретраи**: `com.android.autopay.data.NotificationRetryWorker` — берёт все неудобренные записи, шлёт параллельно, успешные удаляет; при частичных успехах — `Result.retry()`.
+- **Данные и доступ**:
+  - Репозиторий: `com.android.autopay.data.repositories.NotificationRepository` — OkHttp (`Accept`, `Idempotency-Key`, `Access-Token`), JSON тело (`sender`, `message`, `timestamp`, `type`).
+  - Room: `NotificationDatabase`, `NotificationHistoryDao`, `UnsentNotificationDao`, модели и мапперы в `data/local/...`.
+  - Настройки: `com.android.autopay.data.DataStoreManager` — `SettingsData(url, token)`; `DEFAULT_URL` из `data/utils/Constants.kt`.
+- **DI/Конфигурация**:
+  - `com.android.autopay.di.App` — `@HiltAndroidApp`, настраивает `HiltWorkerFactory`.
+  - `com.android.autopay.di.AppModule` — провайдинг `AppDispatchers`, базы/DAO.
+- **Презентация**:
+  - `com.android.autopay.presentation.MainViewModel` — состояние (URL, токен, статистика, device info), тянет DataStore, стримит историю из Room.
+  - `com.android.autopay.presentation.MainScreen` — Compose-экран настроек и статистики.
+
+### Протокол обмена с бэком
+- **Endpoint**: из `SettingsData.url` (вводится пользователем).
+- **Заголовки**:
+  - `Accept: application/json`
+  - `Idempotency-Key: <UUID>`
+  - `Access-Token: <token из настроек>`
+- **Тело JSON**: `sender`, `message`, `timestamp`, `type` (SMS|PUSH).
+- **Идемпотентность**: при фейле на отправке кладём в очередь запись с новым `Idempotency-Key` для повторов.
+
+### Разрешения и поведение
+- `INTERNET`, `RECEIVE_SMS`, foreground service (включая `specialUse`), игнорирование оптимизации батареи (запрос в `MainActivity`), доступ к Notification Listener (через системные настройки).
+- Foreground Service: канал создаётся в `PushNotificationHandlerService`, `START_STICKY`, ребинд при дисконнекте.
+
+### Важные файлы/пакеты
+- `app/src/main/AndroidManifest.xml`
+- `com.android.autopay.MainActivity`
+- `com.android.autopay.data.PushNotificationHandlerService`
+- `com.android.autopay.data.SmsReceiver`
+- `com.android.autopay.data.BootBroadcastReceiver`
+- `com.android.autopay.data.NotificationRetryWorker`
+- `com.android.autopay.data.repositories.NotificationRepository`
+- `com.android.autopay.data.local.db.*`, `data/local/models.*`, `data/local.mappers.*`
+- `com.android.autopay.data.DataStoreManager`
+- `com.android.autopay.presentation.MainViewModel`, `presentation.MainScreen`
+- `com.android.autopay.di.App`, `di.AppModule`
+
+### Сборка и запуск
+- Сборка: `./gradlew :app:assembleDebug`.
+- При первом запуске приложение запросит `RECEIVE_SMS`, включение слушателя уведомлений и отключение оптимизации батареи.
+- В UI ввести `URL` и `Access-Token`, затем «Сохранить».
+
+### Рекомендации к изменениям
+- DI через Hilt; фоновые задачи — `AppDispatchers.io`.
+- Сеть — через OkHttp, не блокировать UI.
+- События всегда писать в историю; при ошибках отправки — в очередь на повтор.
+- Добавляя новые источники, расширять `NotificationType` и обработчики; синхронизировать UI.
+- Ретраи менять в `NotificationRetryWorker` и методах очереди репозитория.
+- Миграции Room оформлять с повышением версии БД.
+- Безопасность: сообщения могут содержать PII — предпочитать HTTPS; для прод выключить `usesCleartextTraffic`.
+
+### Частые задачи (подсказки)
+- Добавить новый тип/фильтр уведомлений — править `NotificationType`, сервис/receiver, маппинг и UI.
+- Изменить формат тела/заголовков — править `NotificationRepository.sendToServer`.
+- Добавить настройку/экран — `MainViewModel`, `MainScreen`, `DataStoreManager`.
+- Изменить стратегию ретраев — `NotificationRetryWorker` и репозиторий.
