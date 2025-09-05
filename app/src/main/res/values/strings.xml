@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">AutoPay</string>
+    <string name="url">URL</string>
+    <string name="token">Токен</string>
+    <string name="connect">Подключить</string>
+    <string name="ok">ОК</string>
+    <string name="connection_success">Успешно подключено</string>
+    <string name="connection_info">Информация о подключении:</string>
+    <string name="last_notifications">"Последние уведомления: "</string>
+    <string name="type_title">"Тип: "</string>
+    <string name="from_title">"От: "</string>
+    <string name="message_title">"Сообщение: "</string>
+    <string name="successfully_connected">Успешно подключено</string>
+    <string name="not_connected">Не подключено</string>
+</resources>

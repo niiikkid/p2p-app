@@ -1,0 +1,37 @@
+package com.android.autopay.data.local.mappers
+
+import com.android.autopay.data.local.models.HistoryNotificationDBO
+import com.android.autopay.data.local.models.UnsentNotificationDBO
+import com.android.autopay.data.models.Notification
+
+fun Notification.toHistoryNotificationDBO() = HistoryNotificationDBO(
+    sender = sender,
+    message = message,
+    timestamp = timestamp,
+    type = type,
+    idempotencyKey = idempotencyKey
+)
+
+fun HistoryNotificationDBO.toNotification() = Notification(
+    sender = sender,
+    message = message,
+    timestamp = timestamp,
+    type = type,
+    idempotencyKey = idempotencyKey
+)
+
+fun Notification.toUnsentNotificationDBO() = UnsentNotificationDBO(
+    sender = sender,
+    message = message,
+    timestamp = timestamp,
+    type = type,
+    idempotencyKey = idempotencyKey
+)
+
+fun UnsentNotificationDBO.toNotification() = Notification(
+    sender = sender,
+    message = message,
+    timestamp = timestamp,
+    type = type,
+    idempotencyKey = idempotencyKey
+)

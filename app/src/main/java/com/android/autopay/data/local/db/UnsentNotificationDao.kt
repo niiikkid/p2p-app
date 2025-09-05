@@ -1,0 +1,21 @@
+package com.android.autopay.data.local.db
+
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.android.autopay.data.local.models.UnsentNotificationDBO
+
+@Dao
+interface UnsentNotificationDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(notification: UnsentNotificationDBO)
+
+    @Delete
+    suspend fun delete(notification: UnsentNotificationDBO)
+
+    @Query("SELECT * FROM unsent_notifications")
+    suspend fun getAll(): List<UnsentNotificationDBO>
+}
