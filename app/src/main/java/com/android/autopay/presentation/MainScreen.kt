@@ -23,6 +23,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.android.autopay.R
 import com.android.autopay.data.models.Notification
+import com.android.autopay.data.models.NotificationType
 import com.android.autopay.presentation.ui.theme.DarkGreen
 
 @Composable
@@ -102,12 +105,23 @@ private fun MainScreen(
                             Button(
                                 onClick = { onIntent(MainContract.Intent.Save) },
                                 shape = MaterialTheme.shapes.extraSmall,
-                                enabled = state.isSavePossible,
+                                enabled = state.isSavePossible && !state.isConnecting,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(44.dp)
                             ) {
-                                Text("Сохранить")
+                                if (state.isConnecting) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                                        Text("Подключаем...")
+                                    }
+                                } else {
+                                    Text("Сохранить")
+                                }
+                            }
+                            if (state.errorMessage != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = state.errorMessage ?: "", color = Color.Red)
                             }
                         }
                     }
@@ -207,7 +221,7 @@ fun NotificationView(notification: Notification) {
                 text = stringResource(R.string.type_title),
                 fontWeight = MaterialTheme.typography.titleMedium.fontWeight
             )
-            Text(text = notification.type)
+            Text(text = notification.type.wireName)
         }
         Row {
             Text(
@@ -243,7 +257,7 @@ fun MinimalNotificationItem(notification: Notification) {
         .fillMaxWidth()
     ) {
         Row {
-            Text(text = notification.type, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+            Text(text = notification.type.wireName, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = notification.sender, style = MaterialTheme.typography.bodyMedium)
         }

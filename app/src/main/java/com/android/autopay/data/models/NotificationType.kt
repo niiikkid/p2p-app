@@ -1,6 +1,11 @@
 package com.android.autopay.data.models
 
-object NotificationType {
-    const val SMS = "sms"
-    const val PUSH = "push"
+enum class NotificationType(val wireName: String) {
+    SMS("sms"),
+    PUSH("push");
+
+    companion object {
+        fun fromWireName(value: String): NotificationType =
+            entries.firstOrNull { it.wireName == value } ?: SMS
+    }
 }

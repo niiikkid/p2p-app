@@ -4,6 +4,6 @@ data class Notification(
     val sender: String,
     val message: String,
     val timestamp: Long,
-    val type: String,
+    val type: NotificationType,
     val idempotencyKey: String,
 )

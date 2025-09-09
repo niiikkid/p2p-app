@@ -20,6 +20,7 @@ import androidx.work.PeriodicWorkRequest
 import androidx.work.WorkManager
 import com.android.autopay.data.NotificationRetryWorker
 import com.android.autopay.data.PushNotificationHandlerService
+import com.android.autopay.data.utils.PERIODIC_WORK_NAME
 import com.android.autopay.presentation.MainScreen
 import com.android.autopay.presentation.ui.theme.AutoPayTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
 
         WorkManager.getInstance(this)
             .enqueueUniquePeriodicWork(
-                "notification_retry_worker",
+                PERIODIC_WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 periodicWorkRequest
             )

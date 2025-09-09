@@ -18,6 +18,9 @@ import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.models.Push
 import com.android.autopay.data.repositories.NotificationRepository
 import com.android.autopay.data.utils.AppDispatchers
+import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
+import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_ID
+import com.android.autopay.data.utils.NOTIFICATION_TEXT_EXTRAS_KEY
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -44,16 +47,16 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, FOREGROUND_NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Получение уведомлений")
             .setContentText("Получение входящих Push-уведомлений")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(1, notification, FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
-            startForeground(1, notification)
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification)
         }
 
         return START_STICKY
@@ -70,7 +73,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     private fun handleNotification(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
-        val text = sbn.notification.extras.getString(TEXT_KEY)
+        val text = sbn.notification.extras.getString(NOTIFICATION_TEXT_EXTRAS_KEY)
 
         val notificationManager: NotificationManager =
             this.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -125,7 +128,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     private fun createNotificationChannel() {
         val serviceChannel = NotificationChannel(
-            CHANNEL_ID,
+            FOREGROUND_NOTIFICATION_CHANNEL_ID,
             "Foreground Service Channel",
             NotificationManager.IMPORTANCE_DEFAULT
         )
@@ -135,7 +138,5 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationHandlerService"
-        private const val CHANNEL_ID = "NotificationHandlerService"
-        private const val TEXT_KEY = "android.text"
     }
 }

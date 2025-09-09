@@ -30,9 +30,13 @@ constructor(
             val deferredResults = notifications.map { notification ->
                 async {
                     try {
-                        repository.sendToServer(notification)
-                        repository.deleteForRetry(notification)
-                        true
+                        val result = repository.sendToServer(notification)
+                        if (result.isSuccess) {
+                            repository.deleteForRetry(notification)
+                            true
+                        } else {
+                            false
+                        }
                     } catch (e: IOException) {
                         Log.w(
                             TAG,

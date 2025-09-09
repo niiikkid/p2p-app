@@ -1,18 +1,15 @@
 package com.android.autopay.presentation
 
-import android.app.Application
-import android.content.Context
 import android.os.Build
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.autopay.data.DataStoreManager
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.SettingsData
 import com.android.autopay.data.repositories.NotificationRepository
-import com.android.autopay.data.utils.DEFAULT_URL
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -22,25 +19,19 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val dataStoreManager: DataStoreManager,
     private val notificationRepository: NotificationRepository,
-    @ApplicationContext context: Context
-) : AndroidViewModel(context as Application) {
+) : ViewModel() {
 
-    private val _state = MutableStateFlow(MainContract.State())
-    val state = _state.asStateFlow()
+    private val _state: MutableStateFlow<MainContract.State> = MutableStateFlow(MainContract.State())
+    val state: StateFlow<MainContract.State> = _state.asStateFlow()
 
     init {
         viewModelScope.launch {
             val settingsData = dataStoreManager.getSettings().first()
-
             _state.value = state.value.copy(
                 token = settingsData.token,
+                isConnected = settingsData.isConnected
             )
-
             updateIsSavePossible()
-
-            _state.value = state.value.copy(
-                isConnected = true
-            )
         }
 
         viewModelScope.launch {
@@ -107,17 +98,28 @@ class MainViewModel @Inject constructor(
 
     private fun onSave() {
         viewModelScope.launch {
-            dataStoreManager.saveSettings(
-                SettingsData(
-                    url = DEFAULT_URL,
-                    token = state.value.token
-                )
-            )
-            updateIsSavePossible()
+            _state.value = state.value.copy(isConnecting = true, errorMessage = null)
+            val currentSettings = dataStoreManager.getSettings().first()
+            val tokenToSave = state.value.token
 
-            _state.value = state.value.copy(
-                isConnected = true
-            )
+            val connectResult = notificationRepository.connect(tokenToSave)
+            if (connectResult.isSuccess) {
+                dataStoreManager.saveSettings(
+                    SettingsData(
+                        url = currentSettings.url,
+                        token = tokenToSave,
+                        isConnected = true
+                    )
+                )
+                _state.value = state.value.copy(isConnected = true, isConnecting = false)
+            } else {
+                _state.value = state.value.copy(
+                    isConnected = false,
+                    isConnecting = false,
+                    errorMessage = connectResult.exceptionOrNull()?.message
+                )
+            }
+            updateIsSavePossible()
         }
     }
 }
@@ -128,6 +130,8 @@ object MainContract {
         val notificationStats: NotificationStats = NotificationStats(),
         val isSavePossible: Boolean = false,
         val isConnected: Boolean = false,
+        val isConnecting: Boolean = false,
+        val errorMessage: String? = null,
         val deviceInfo: DeviceInfo = DeviceInfo(),
         val allNotifications: List<Notification> = emptyList()
     ) {

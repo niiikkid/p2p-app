@@ -5,6 +5,7 @@ import com.android.autopay.data.local.db.NotificationDatabase
 import com.android.autopay.data.local.db.NotificationHistoryDao
 import com.android.autopay.data.local.db.UnsentNotificationDao
 import com.android.autopay.data.utils.AppDispatchers
+import okhttp3.OkHttpClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,6 +22,10 @@ abstract class AppModule {
         @Provides
         @Singleton
         fun provideAppCoroutineDispatchers(): AppDispatchers = AppDispatchers()
+
+        @Provides
+        @Singleton
+        fun provideOkHttpClient(): OkHttpClient = OkHttpClient()
 
         @Provides
         @Singleton
