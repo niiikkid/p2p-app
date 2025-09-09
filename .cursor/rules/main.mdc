@@ -18,72 +18,124 @@ alwaysApply: true
 - **Сеть**: OkHttp 4.12.0.
 - **Манифест**: usesCleartextTraffic=true, NotificationListenerService.
 
-### Архитектура и ключевые узлы
-- **Точка входа**: `com.android.autopay.MainActivity`
-  - Запрашивает разрешения (`RECEIVE_SMS`, доступ к слушателю уведомлений), предлагает отключить оптимизацию батареи.
-  - Запускает foreground-сервис `PushNotificationHandlerService`.
-  - Планирует периодический ретрай `NotificationRetryWorker` (15 мин, при наличии сети).
-- **Сбор входящих событий**:
-  - Push: `com.android.autopay.data.PushNotificationHandlerService` (`NotificationListenerService`)
-    - Игнорирует SMS-пакет по умолчанию и собственный пакет.
-    - Создаёт канал уведомлений, парсит `android.text`, пишет в историю и шлёт на сервер; при неуспехе — в очередь на повтор.
-  - SMS: `com.android.autopay.data.SmsReceiver` (`BroadcastReceiver` на `SMS_RECEIVED_ACTION`)
-    - Склеивает multipart, сохраняет в историю, отправляет; при неуспехе — в очередь на повтор.
-  - Автозапуск: `com.android.autopay.data.BootBroadcastReceiver` стартует сервис после `BOOT_COMPLETED`.
-- **Ретраи**: `com.android.autopay.data.NotificationRetryWorker` — берёт все неудобренные записи, шлёт параллельно, успешные удаляет; при частичных успехах — `Result.retry()`.
-- **Данные и доступ**:
-  - Репозиторий: `com.android.autopay.data.repositories.NotificationRepository` — OkHttp (`Accept`, `Idempotency-Key`, `Access-Token`), JSON тело (`sender`, `message`, `timestamp`, `type`).
-  - Room: `NotificationDatabase`, `NotificationHistoryDao`, `UnsentNotificationDao`, модели и мапперы в `data/local/...`.
-  - Настройки: `com.android.autopay.data.DataStoreManager` — `SettingsData(url, token)`; `DEFAULT_URL` из `data/utils/Constants.kt`.
-- **DI/Конфигурация**:
-  - `com.android.autopay.di.App` — `@HiltAndroidApp`, настраивает `HiltWorkerFactory`.
-  - `com.android.autopay.di.AppModule` — провайдинг `AppDispatchers`, базы/DAO.
-- **Презентация**:
-  - `com.android.autopay.presentation.MainViewModel` — состояние (URL, токен, статистика, device info), тянет DataStore, стримит историю из Room.
-  - `com.android.autopay.presentation.MainScreen` — Compose-экран настроек и статистики.
 
-### Протокол обмена с бэком
-- **Endpoint**: из `SettingsData.url` (вводится пользователем).
-- **Заголовки**:
-  - `Accept: application/json`
-  - `Idempotency-Key: <UUID>`
-  - `Access-Token: <token из настроек>`
-- **Тело JSON**: `sender`, `message`, `timestamp`, `type` (SMS|PUSH).
-- **Идемпотентность**: при фейле на отправке кладём в очередь запись с новым `Idempotency-Key` для повторов.
+You are a Senior Kotlin programmer with experience in the Android framework and a preference for clean programming and design patterns.
 
-### Разрешения и поведение
-- `INTERNET`, `RECEIVE_SMS`, foreground service (включая `specialUse`), игнорирование оптимизации батареи (запрос в `MainActivity`), доступ к Notification Listener (через системные настройки).
-- Foreground Service: канал создаётся в `PushNotificationHandlerService`, `START_STICKY`, ребинд при дисконнекте.
+Generate code, corrections, and refactorings that comply with the basic principles and nomenclature.
 
-### Важные файлы/пакеты
-- `app/src/main/AndroidManifest.xml`
-- `com.android.autopay.MainActivity`
-- `com.android.autopay.data.PushNotificationHandlerService`
-- `com.android.autopay.data.SmsReceiver`
-- `com.android.autopay.data.BootBroadcastReceiver`
-- `com.android.autopay.data.NotificationRetryWorker`
-- `com.android.autopay.data.repositories.NotificationRepository`
-- `com.android.autopay.data.local.db.*`, `data/local/models.*`, `data/local.mappers.*`
-- `com.android.autopay.data.DataStoreManager`
-- `com.android.autopay.presentation.MainViewModel`, `presentation.MainScreen`
-- `com.android.autopay.di.App`, `di.AppModule`
+## Kotlin General Guidelines
 
-### Сборка и запуск
-- Сборка: `./gradlew :app:assembleDebug`.
-- При первом запуске приложение запросит `RECEIVE_SMS`, включение слушателя уведомлений и отключение оптимизации батареи.
-- В UI ввести `URL` и `Access-Token`, затем «Сохранить».
+### Basic Principles
+- Always declare the type of each variable and function (parameters and return value).
+  - Avoid using any.
+  - Create necessary types.
+- Don't leave blank lines within a function.
 
-### Рекомендации к изменениям
-- DI через Hilt; фоновые задачи — `AppDispatchers.io`.
-- Сеть — через OkHttp, не блокировать UI.
-- События всегда писать в историю; при ошибках отправки — в очередь на повтор.
-- Добавляя новые источники, расширять `NotificationType` и обработчики; синхронизировать UI.
-- Ретраи менять в `NotificationRetryWorker` и методах очереди репозитория.
-- Миграции Room оформлять с повышением версии БД.
-- Безопасность: сообщения могут содержать PII — предпочитать HTTPS; для прод выключить `usesCleartextTraffic`.
+### Nomenclature
 
-### Частые задачи (подсказки)
-- Добавить новый тип/фильтр уведомлений — править `NotificationType`, сервис/receiver, маппинг и UI.
-- Изменить формат тела/заголовков — править `NotificationRepository.sendToServer`.
-- Добавить настройку/экран — `MainViewModel`, `MainScreen`, `DataStoreManager`.
-- Изменить стратегию ретраев — `NotificationRetryWorker` и репозиторий.
+- Use PascalCase for classes.
+- Use camelCase for variables, functions, and methods.
+- Use underscores_case for file and directory names.
+- Use UPPERCASE for environment variables.
+  - Avoid magic numbers and define constants.
+- Start each function with a verb.
+- Use verbs for boolean variables. Example: isLoading, hasError, canDelete, etc.
+- Use complete words instead of abbreviations and correct spelling.
+  - Except for standard abbreviations like API, URL, etc.
+  - Except for well-known abbreviations:
+    - i, j for loops
+    - err for errors
+    - ctx for contexts
+    - req, res, next for middleware function parameters
+
+### Functions
+
+- In this context, what is understood as a function will also apply to a method.
+- Write short functions with a single purpose. Less than 20 instructions.
+- Name functions with a verb and something else.
+  - If it returns a boolean, use isX or hasX, canX, etc.
+  - If it doesn't return anything, use executeX or saveX, etc.
+- Avoid nesting blocks by:
+  - Early checks and returns.
+  - Extraction to utility functions.
+- Use higher-order functions (map, filter, reduce, etc.) to avoid function nesting.
+  - Use arrow functions for simple functions (less than 3 instructions).
+  - Use named functions for non-simple functions.
+- Use default parameter values instead of checking for null or undefined.
+- Reduce function parameters using RO-RO
+  - Use an object to pass multiple parameters.
+  - Use an object to return results.
+  - Declare necessary types for input arguments and output.
+- Use a single level of abstraction.
+
+### Data
+
+- Use data classes for data.
+- Don't abuse primitive types and encapsulate data in composite types.
+- Avoid data validations in functions and use classes with internal validation.
+- Prefer immutability for data.
+  - Use readonly for data that doesn't change.
+  - Use as val for literals that don't change.
+
+### Classes
+
+- Follow SOLID principles.
+- Prefer composition over inheritance.
+- Declare interfaces to define contracts.
+- Write small classes with a single purpose.
+  - Less than 200 instructions.
+  - Less than 10 public methods.
+  - Less than 10 properties.
+
+### Exceptions
+
+- Use exceptions to handle errors you don't expect.
+- If you catch an exception, it should be to:
+  - Fix an expected problem.
+  - Add context.
+  - Otherwise, use a global handler.
+
+### Testing
+
+- Follow the Arrange-Act-Assert convention for tests.
+- Name test variables clearly.
+  - Follow the convention: inputX, mockX, actualX, expectedX, etc.
+- Write unit tests for each public function.
+  - Use test doubles to simulate dependencies.
+    - Except for third-party dependencies that are not expensive to execute.
+- Write acceptance tests for each module.
+  - Follow the Given-When-Then convention.
+
+## Specific to Android
+
+### Basic Principles
+
+- Use clean architecture
+  - see repositories if you need to organize code into repositories
+- Use repository pattern for data persistence
+  - see cache if you need to cache data
+- Use MVI pattern to manage state and events in viewmodels and trigger and render them in activities / fragments
+  - see keepAlive if you need to keep the state alive
+- Use Auth Activity to manage authentication flow
+  - Splash Screen
+  - Login
+  - Register
+  - Forgot Password
+  - Verify Email
+- Use Navigation Component to manage navigation between activities/fragments
+- Use MainActivity to manage the main navigation
+  - Use BottomNavigationView to manage the bottom navigation
+  - Home
+  - Profile
+  - Settings
+  - Patients
+  - Appointments
+- Use ViewBinding to manage views
+- Use Flow / LiveData to manage UI state
+- Use xml and fragments instead of jetpack compose
+- Use Material 3 for the UI
+- Use ConstraintLayout for layouts
+### Testing
+
+- Use the standard widget testing for flutter
+- Use integration tests for each api module.
