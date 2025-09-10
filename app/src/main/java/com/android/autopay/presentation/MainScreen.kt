@@ -42,6 +42,7 @@ import com.android.autopay.R
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.NotificationType
 import com.android.autopay.presentation.ui.theme.DarkGreen
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun MainScreen() {
@@ -124,7 +125,7 @@ private fun MainScreen(
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Card(colors = CardDefaults.cardColors()) {
+                    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors()) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "Последний успешный пинг: ", style = MaterialTheme.typography.bodySmall)
@@ -133,7 +134,7 @@ private fun MainScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Card(colors = CardDefaults.cardColors()) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             val statusText = if (state.isConnected) stringResource(id = R.string.successfully_connected) else stringResource(id = R.string.not_connected)
@@ -141,7 +142,7 @@ private fun MainScreen(
                             Text(text = statusText, style = MaterialTheme.typography.titleSmall, color = statusColor)
                             Button(
                                 onClick = { showDeviceInfo = !showDeviceInfo },
-                                shape = MaterialTheme.shapes.extraSmall,
+                                shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(40.dp)
@@ -161,9 +162,9 @@ private fun MainScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Card(colors = CardDefaults.cardColors()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
                             Row {
                                 Text(
                                     text = "Получено всего: ",
@@ -176,11 +177,12 @@ private fun MainScreen(
                                 text = "Все логи",
                                 style = MaterialTheme.typography.titleSmall
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(0.dp))
                             OutlinedTextField(
                                 value = state.searchQuery,
                                 onValueChange = { onIntent(MainContract.Intent.ChangeSearchQuery(it)) },
                                 label = { Text("Поиск по логам") },
+                                shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
