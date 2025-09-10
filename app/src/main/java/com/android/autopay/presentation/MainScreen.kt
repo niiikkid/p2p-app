@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -43,6 +44,8 @@ import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.NotificationType
 import com.android.autopay.presentation.ui.theme.DarkGreen
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.draw.shadow
 
 @Composable
 fun MainScreen() {
@@ -62,7 +65,10 @@ private fun MainScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("AutoPay") })
+            TopAppBar(
+                title = { Text("AutoPay") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF3F4F6))
+            )
         },
         modifier = Modifier
     ) { paddingValues ->
@@ -126,33 +132,62 @@ private fun MainScreen(
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = "Последний успешный пинг: ", style = MaterialTheme.typography.bodySmall)
-                                val seconds = state.lastPingElapsedSeconds
-                                Text(text = if (state.lastSuccessfulPingAt == 0L) "—" else "$seconds c", style = MaterialTheme.typography.bodySmall, color = DarkGreen)
-                            }
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 4.dp)
+                        ) {
+                            Text(text = "Последний успешный пинг: ", style = MaterialTheme.typography.bodySmall)
+                            val seconds = state.lastPingElapsedSeconds
+                            Text(text = if (state.lastSuccessfulPingAt == 0L) "—" else "$seconds c", style = MaterialTheme.typography.bodySmall, color = DarkGreen)
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(colors = CardDefaults.cardColors()) {
-                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val statusText = if (state.isConnected) stringResource(id = R.string.successfully_connected) else stringResource(id = R.string.not_connected)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val statusText = if (state.isConnected)
+                                stringResource(id = R.string.successfully_connected)
+                            else
+                                stringResource(id = R.string.not_connected)
+
                             val statusColor = if (state.isConnected) DarkGreen else Color.Red
-                            Text(text = statusText, style = MaterialTheme.typography.titleSmall, color = statusColor)
+
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = statusColor
+                            )
+
                             Button(
                                 onClick = { showDeviceInfo = !showDeviceInfo },
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(40.dp)
-                            ) { Text(if (showDeviceInfo) "Скрыть доп. информацию" else "Показать доп. информацию") }
+                            ) {
+                                Text(if (showDeviceInfo) "Скрыть доп. информацию" else "Показать доп. информацию")
+                            }
+
                             if (showDeviceInfo) {
                                 Text(
                                     text = stringResource(id = R.string.connection_info),
                                     style = MaterialTheme.typography.titleSmall
                                 )
+
                                 DeviceInfoRowView(title = "Device: ", value = state.deviceInfo.deviceName)
                                 DeviceInfoRowView(title = "Manufacturer: ", value = state.deviceInfo.manufacturer)
                                 DeviceInfoRowView(title = "Model: ", value = state.deviceInfo.model)
@@ -163,9 +198,16 @@ private fun MainScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(colors = CardDefaults.cardColors()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row {
                                 Text(
                                     text = "Получено всего: ",
@@ -184,6 +226,14 @@ private fun MainScreen(
                                 onValueChange = { onIntent(MainContract.Intent.ChangeSearchQuery(it)) },
                                 label = { Text("Поиск по логам") },
                                 shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color(0xFFE5E7EB),
+                                    focusedBorderColor = Color(0xFF6366F1),
+                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = Color.White,
+                                    unfocusedTextColor = Color(0xFF374151),
+                                    focusedTextColor = Color(0xFF374151)
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -226,27 +276,46 @@ private fun MainScreen(
 
 @Composable
 fun NotificationView(notification: Notification) {
-    Column {
-        Row {
-            Text(
-                text = stringResource(R.string.type_title),
-                fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-            )
-            Text(text = notification.type.wireName)
-        }
-        Row {
-            Text(
-                text = stringResource(R.string.from_title),
-                fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-            )
-            Text(text = notification.sender)
-        }
-        Row {
-            Text(
-                text = stringResource(R.string.message_title),
-                fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-            )
-            Text(text = notification.message)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = Color(0xFFE5E7EB)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Row {
+                Text(
+                    text = stringResource(R.string.type_title),
+                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
+                )
+                Text(text = notification.type.wireName)
+            }
+            Row {
+                Text(
+                    text = stringResource(R.string.from_title),
+                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
+                )
+                Text(text = notification.sender)
+            }
+            Row {
+                Text(
+                    text = stringResource(R.string.message_title),
+                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
+                )
+                Text(text = notification.message)
+            }
         }
     }
 }
