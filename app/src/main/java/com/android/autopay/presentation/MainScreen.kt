@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -70,139 +71,127 @@ private fun MainScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Card(colors = CardDefaults.cardColors()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        var showTokenEditor by remember { mutableStateOf(false) }
-
+            if (!state.isConnected) {
+                var showConnectForm by remember { mutableStateOf(false) }
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (!showConnectForm) {
                         Button(
-                            onClick = { showTokenEditor = !showTokenEditor },
+                            onClick = { showConnectForm = true },
                             shape = MaterialTheme.shapes.extraSmall,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(44.dp)
                         ) {
-                            Text("Обновить токен")
+                            Text("Подключить приложение")
                         }
-
-                        if (showTokenEditor) {
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            OutlinedTextField(
-                                value = state.token,
-                                onValueChange = { onIntent(MainContract.Intent.ChangeToken(it)) },
-                                label = { Text("Токен") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
+                    } else {
+                        OutlinedTextField(
+                            value = state.token,
+                            onValueChange = { onIntent(MainContract.Intent.ChangeToken(it)) },
+                            label = { Text("Токен") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Button(
+                            onClick = { onIntent(MainContract.Intent.Save) },
+                            shape = MaterialTheme.shapes.extraSmall,
+                            enabled = state.isSavePossible && !state.isConnecting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            if (state.isConnecting) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    CircularProgressIndicator(modifier = Modifier.height(20.dp))
+                                    Text("Подключаем...")
+                                }
+                            } else {
+                                Text("Сохранить")
+                            }
+                        }
+                        if (state.errorMessage != null) {
+                            Text(text = state.errorMessage ?: "", color = Color.Red)
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Card(colors = CardDefaults.cardColors()) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val statusText = if (state.isConnected) stringResource(id = R.string.successfully_connected) else stringResource(id = R.string.not_connected)
+                            val statusColor = if (state.isConnected) DarkGreen else Color.Red
+                            Text(text = statusText, style = MaterialTheme.typography.titleSmall, color = statusColor)
                             Button(
-                                onClick = { onIntent(MainContract.Intent.Save) },
+                                onClick = { showDeviceInfo = !showDeviceInfo },
                                 shape = MaterialTheme.shapes.extraSmall,
-                                enabled = state.isSavePossible && !state.isConnecting,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(44.dp)
-                            ) {
-                                if (state.isConnecting) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        CircularProgressIndicator(modifier = Modifier.height(20.dp))
-                                        Text("Подключаем...")
-                                    }
-                                } else {
-                                    Text("Сохранить")
-                                }
+                                    .height(40.dp)
+                            ) { Text(if (showDeviceInfo) "Скрыть доп. информацию" else "Показать доп. информацию") }
+                            if (showDeviceInfo) {
+                                Text(
+                                    text = stringResource(id = R.string.connection_info),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                DeviceInfoRowView(title = "Device: ", value = state.deviceInfo.deviceName)
+                                DeviceInfoRowView(title = "Manufacturer: ", value = state.deviceInfo.manufacturer)
+                                DeviceInfoRowView(title = "Model: ", value = state.deviceInfo.model)
+                                DeviceInfoRowView(title = "Android Version: ", value = state.deviceInfo.androidVersion)
+                                DeviceInfoRowView(title = "API Level: ", value = state.deviceInfo.apiLevel)
+                                DeviceInfoRowView(title = "Build Number: ", value = state.deviceInfo.buildNumber)
+                                DeviceInfoRowView(title = "CPU Architecture: ", value = state.deviceInfo.cpuAbi)
                             }
-                            if (state.errorMessage != null) {
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Card(colors = CardDefaults.cardColors()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row {
+                                Text(
+                                    text = "Получено всего: ",
+                                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
+                                )
+                                Text(text = state.notificationStats.receiveAll.toString())
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { showLogs = !showLogs },
+                                shape = MaterialTheme.shapes.extraSmall,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(40.dp)
+                            ) { Text(if (showLogs) "Скрыть логи" else "Показать логи") }
+                            if (showLogs) {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(text = state.errorMessage ?: "", color = Color.Red)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Card(colors = CardDefaults.cardColors()) {
-                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val statusText = if (state.isConnected) stringResource(id = R.string.successfully_connected) else stringResource(id = R.string.not_connected)
-                        val statusColor = if (state.isConnected) DarkGreen else Color.Red
-
-                        Text(text = statusText, style = MaterialTheme.typography.titleSmall, color = statusColor)
-
-                        Button(
-                            onClick = { showDeviceInfo = !showDeviceInfo },
-                            shape = MaterialTheme.shapes.extraSmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                        ) { Text(if (showDeviceInfo) "Скрыть доп. информацию" else "Показать доп. информацию") }
-
-                        if (showDeviceInfo) {
-                            Text(
-                                text = stringResource(id = R.string.connection_info),
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            DeviceInfoRowView(title = "Device: ", value = state.deviceInfo.deviceName)
-                            DeviceInfoRowView(title = "Manufacturer: ", value = state.deviceInfo.manufacturer)
-                            DeviceInfoRowView(title = "Model: ", value = state.deviceInfo.model)
-                            DeviceInfoRowView(title = "Android Version: ", value = state.deviceInfo.androidVersion)
-                            DeviceInfoRowView(title = "API Level: ", value = state.deviceInfo.apiLevel)
-                            DeviceInfoRowView(title = "Build Number: ", value = state.deviceInfo.buildNumber)
-                            DeviceInfoRowView(title = "CPU Architecture: ", value = state.deviceInfo.cpuAbi)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Card(colors = CardDefaults.cardColors()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row {
-                            Text(
-                                text = "Получено всего: ",
-                                fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-                            )
-                            Text(text = state.notificationStats.receiveAll.toString())
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = { showLogs = !showLogs },
-                            shape = MaterialTheme.shapes.extraSmall,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                        ) { Text(if (showLogs) "Скрыть логи" else "Показать логи") }
-
-                        if (showLogs) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                state.allNotifications.asReversed().forEach { notification ->
-                                    MinimalNotificationItem(notification)
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    state.allNotifications.asReversed().forEach { notification ->
+                                        MinimalNotificationItem(notification)
+                                    }
                                 }
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.last_notifications),
-                                fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                state.notificationStats.lastNotifications.forEach { notification ->
-                                    NotificationView(notification)
+                            } else {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.last_notifications),
+                                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    state.notificationStats.lastNotifications.forEach { notification ->
+                                        NotificationView(notification)
+                                    }
                                 }
                             }
                         }
