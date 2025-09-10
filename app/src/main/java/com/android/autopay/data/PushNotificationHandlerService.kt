@@ -21,13 +21,24 @@ import com.android.autopay.data.utils.AppDispatchers
 import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
 import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_ID
 import com.android.autopay.data.utils.NOTIFICATION_TEXT_EXTRAS_KEY
+import com.android.autopay.data.utils.PING_ENDPOINT_PATH
+import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
+import com.android.autopay.data.DataStoreManager
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
+import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 
 @AndroidEntryPoint
@@ -44,6 +55,9 @@ class PushNotificationHandlerService : NotificationListenerService() {
     lateinit var appDispatchers: AppDispatchers
 
     private val scope by lazy { CoroutineScope(appDispatchers.io) }
+    private var pingJob: Job? = null
+    @Inject lateinit var httpClient: OkHttpClient
+    @Inject lateinit var dataStoreManager: DataStoreManager
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
@@ -59,6 +73,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
             startForeground(FOREGROUND_NOTIFICATION_ID, notification)
         }
 
+        startPingLoop()
         return START_STICKY
     }
 
@@ -119,6 +134,35 @@ class PushNotificationHandlerService : NotificationListenerService() {
                 )
                 repository.saveForRetry(notification)
             }
+        }
+    }
+
+    private fun startPingLoop() {
+        if (pingJob?.isActive == true) return
+        pingJob = scope.launch {
+            while (isActive) {
+                try { performPing() } catch (_: Exception) {}
+                delay(PING_INTERVAL_SECONDS * 1000L)
+            }
+        }
+    }
+
+    private suspend fun performPing() {
+        val settings = dataStoreManager.getSettings().first()
+        if (!settings.isConnected || settings.token.isBlank()) return
+        val pingUrl: String = buildPingUrl(settings.url)
+        val headers = Headers.Builder().add("Accept", "application/json").add("Access-Token", settings.token).build()
+        val request = Request.Builder().url(pingUrl).headers(headers).get().build()
+        withContext(appDispatchers.io) {
+            try { httpClient.newCall(request).execute().use { } } catch (e: Exception) { Log.d(TAG, "Ping failed: ${e.message}", e) }
+        }
+    }
+
+    private fun buildPingUrl(settingsUrl: String): String {
+        val apiSmsSegment: String = "/api/app/sms"
+        return if (settingsUrl.contains(apiSmsSegment)) settingsUrl.replace(apiSmsSegment, PING_ENDPOINT_PATH) else {
+            val base: String = if (settingsUrl.endsWith("/")) settingsUrl.dropLast(1) else settingsUrl
+            "$base$PING_ENDPOINT_PATH"
         }
     }
 

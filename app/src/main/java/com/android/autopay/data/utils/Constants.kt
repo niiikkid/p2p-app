@@ -6,3 +6,6 @@ const val FOREGROUND_NOTIFICATION_CHANNEL_ID: String = "notification_handler_cha
 const val FOREGROUND_NOTIFICATION_ID: Int = 1
 const val PERIODIC_WORK_NAME: String = "notification_retry_worker"
 const val NOTIFICATION_TEXT_EXTRAS_KEY: String = "android.text"
+const val PING_WORK_NAME: String = "device_ping_worker"
+const val PING_ENDPOINT_PATH: String = "/api/app/device/ping"
+const val PING_INTERVAL_SECONDS: Long = 15

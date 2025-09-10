@@ -18,9 +18,12 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequest
 import androidx.work.WorkManager
+import com.android.autopay.data.PingWorker
 import com.android.autopay.data.NotificationRetryWorker
 import com.android.autopay.data.PushNotificationHandlerService
 import com.android.autopay.data.utils.PERIODIC_WORK_NAME
+import com.android.autopay.data.utils.PING_WORK_NAME
+import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.presentation.MainScreen
 import com.android.autopay.presentation.ui.theme.AutoPayTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,6 +53,7 @@ class MainActivity : ComponentActivity() {
         )
 
         setupPeriodicRetrySendWork()
+        // Пинг теперь выполняется в foreground-сервисе каждые PING_INTERVAL_SECONDS
 
         setContent {
             AutoPayTheme {
@@ -72,6 +76,26 @@ class MainActivity : ComponentActivity() {
         WorkManager.getInstance(this)
             .enqueueUniquePeriodicWork(
                 PERIODIC_WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                periodicWorkRequest
+            )
+    }
+
+    private fun setupPeriodicPingWork() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val repeatIntervalMinutes: Long = TimeUnit.SECONDS.toMinutes(PING_INTERVAL_SECONDS)
+        val periodicWorkRequest = PeriodicWorkRequest.Builder(
+            PingWorker::class.java, repeatIntervalMinutes, TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork(
+                PING_WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 periodicWorkRequest
             )
