@@ -82,7 +82,7 @@ private fun MainScreen(
                     if (!showConnectForm) {
                         Button(
                             onClick = { showConnectForm = true },
-                            shape = MaterialTheme.shapes.extraSmall,
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(44.dp)
@@ -94,11 +94,12 @@ private fun MainScreen(
                             value = state.token,
                             onValueChange = { onIntent(MainContract.Intent.ChangeToken(it)) },
                             label = { Text("Токен") },
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
                         Button(
                             onClick = { onIntent(MainContract.Intent.Save) },
-                            shape = MaterialTheme.shapes.extraSmall,
+                            shape = RoundedCornerShape(12.dp),
                             enabled = state.isSavePossible && !state.isConnecting,
                             modifier = Modifier
                                 .fillMaxWidth()
