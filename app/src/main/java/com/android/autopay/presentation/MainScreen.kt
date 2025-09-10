@@ -58,7 +58,6 @@ private fun MainScreen(
     onIntent: (MainContract.Intent) -> Unit
 ) {
     var showDeviceInfo by remember { mutableStateOf(false) }
-    var showLogs by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -163,35 +162,45 @@ private fun MainScreen(
                                 Text(text = state.notificationStats.receiveAll.toString())
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = { showLogs = !showLogs },
-                                shape = MaterialTheme.shapes.extraSmall,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(40.dp)
-                            ) { Text(if (showLogs) "Скрыть логи" else "Показать логи") }
-                            if (showLogs) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    state.allNotifications.asReversed().forEach { notification ->
-                                        MinimalNotificationItem(notification)
-                                    }
+                            Text(
+                                text = "Все логи",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = { onIntent(MainContract.Intent.ChangeSearchQuery(it)) },
+                                label = { Text("Поиск по логам") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                state.pagedNotifications.forEach { notification ->
+                                    NotificationView(notification)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (state.isPageLoading) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                    CircularProgressIndicator()
                                 }
                             } else {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = stringResource(R.string.last_notifications),
-                                    fontWeight = MaterialTheme.typography.titleMedium.fontWeight
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    state.notificationStats.lastNotifications.forEach { notification ->
-                                        NotificationView(notification)
-                                    }
+                                if (state.canLoadMore) {
+                                    Button(
+                                        onClick = { onIntent(MainContract.Intent.LoadMoreLogs) },
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                    ) { Text("Загрузить ещё") }
+                                } else {
+                                    Text(
+                                        text = "Это все логи",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
                                 }
                             }
                         }

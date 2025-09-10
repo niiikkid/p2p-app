@@ -15,4 +15,19 @@ interface NotificationHistoryDao {
 
     @Query("SELECT * FROM notification_history")
     fun observeAll(): Flow<List<HistoryNotificationDBO>>
+
+    @Query("SELECT COUNT(*) FROM notification_history")
+    fun observeCount(): Flow<Int>
+
+    @Query("SELECT * FROM notification_history ORDER BY timestamp DESC LIMIT :limit")
+    fun observeLatest(limit: Int): Flow<List<HistoryNotificationDBO>>
+
+    @Query(
+        "SELECT * FROM notification_history " +
+            "WHERE (:pattern IS NULL OR LOWER(sender) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(message) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\') " +
+            "ORDER BY timestamp DESC LIMIT :limit OFFSET :offset"
+    )
+    suspend fun getPage(pattern: String?, limit: Int, offset: Int): List<HistoryNotificationDBO>
 }

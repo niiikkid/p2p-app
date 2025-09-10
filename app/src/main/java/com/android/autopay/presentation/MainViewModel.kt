@@ -35,18 +35,28 @@ class MainViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            notificationRepository.observeHistory()
-                .collect { notificationHistory ->
+            notificationRepository.observeCount()
+                .collect { totalCount ->
                     _state.value = state.value.copy(
-                        notificationStats =
-                        state.value.notificationStats.copy(
-                            receiveAll = notificationHistory.size,
-                            lastNotifications = notificationHistory.takeLast(5).reversed()
-                        ),
-                        allNotifications = notificationHistory
+                        notificationStats = state.value.notificationStats.copy(
+                            receiveAll = totalCount
+                        )
                     )
                 }
         }
+
+        viewModelScope.launch {
+            notificationRepository.observeLatest(5)
+                .collect { latest ->
+                    _state.value = state.value.copy(
+                        notificationStats = state.value.notificationStats.copy(
+                            lastNotifications = latest
+                        )
+                    )
+                }
+        }
+
+        viewModelScope.launch { loadFirstPage() }
 
         viewModelScope.launch {
             val deviceName = Build.MODEL
@@ -75,6 +85,8 @@ class MainViewModel @Inject constructor(
         when (intent) {
             is MainContract.Intent.ChangeToken -> onChangeToken(intent)
             is MainContract.Intent.Save -> onSave()
+            is MainContract.Intent.ChangeSearchQuery -> onChangeSearchQuery(intent)
+            is MainContract.Intent.LoadMoreLogs -> onLoadMore()
         }
     }
 
@@ -122,6 +134,51 @@ class MainViewModel @Inject constructor(
             updateIsSavePossible()
         }
     }
+
+    private fun onChangeSearchQuery(intent: MainContract.Intent.ChangeSearchQuery) {
+        _state.value = state.value.copy(searchQuery = intent.query)
+        viewModelScope.launch { loadFirstPage() }
+    }
+
+    private fun onLoadMore() {
+        if (state.value.isPageLoading || !state.value.canLoadMore) return
+        viewModelScope.launch { loadNextPage() }
+    }
+
+    private suspend fun loadFirstPage() {
+        _state.value = state.value.copy(
+            isPageLoading = true,
+            pagedNotifications = emptyList(),
+            nextOffset = 0,
+            canLoadMore = true
+        )
+        val page = notificationRepository.getHistoryPage(
+            query = state.value.searchQuery.ifBlank { null },
+            limit = state.value.pageSize,
+            offset = 0
+        )
+        _state.value = state.value.copy(
+            pagedNotifications = page,
+            nextOffset = page.size,
+            isPageLoading = false,
+            canLoadMore = page.size >= state.value.pageSize
+        )
+    }
+
+    private suspend fun loadNextPage() {
+        _state.value = state.value.copy(isPageLoading = true)
+        val page = notificationRepository.getHistoryPage(
+            query = state.value.searchQuery.ifBlank { null },
+            limit = state.value.pageSize,
+            offset = state.value.nextOffset
+        )
+        _state.value = state.value.copy(
+            pagedNotifications = state.value.pagedNotifications + page,
+            nextOffset = state.value.nextOffset + page.size,
+            isPageLoading = false,
+            canLoadMore = page.size >= state.value.pageSize
+        )
+    }
 }
 
 object MainContract {
@@ -133,7 +190,12 @@ object MainContract {
         val isConnecting: Boolean = false,
         val errorMessage: String? = null,
         val deviceInfo: DeviceInfo = DeviceInfo(),
-        val allNotifications: List<Notification> = emptyList()
+        val searchQuery: String = "",
+        val pagedNotifications: List<Notification> = emptyList(),
+        val isPageLoading: Boolean = false,
+        val nextOffset: Int = 0,
+        val pageSize: Int = 20,
+        val canLoadMore: Boolean = true
     ) {
 
         data class NotificationStats(
@@ -155,5 +217,7 @@ object MainContract {
     sealed class Intent {
         data class ChangeToken(val token: String) : Intent()
         data object Save : Intent()
+        data class ChangeSearchQuery(val query: String) : Intent()
+        data object LoadMoreLogs : Intent()
     }
 }

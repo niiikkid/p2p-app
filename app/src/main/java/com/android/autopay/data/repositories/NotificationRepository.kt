@@ -130,6 +130,30 @@ class NotificationRepository @Inject constructor(
         }
     }
 
+    fun observeLatest(limit: Int): Flow<List<Notification>> {
+        return notificationHistoryDao.observeLatest(limit).map { list ->
+            list.map { it.toNotification() }
+        }
+    }
+
+    fun observeCount(): Flow<Int> {
+        return notificationHistoryDao.observeCount()
+    }
+
+    suspend fun getHistoryPage(query: String?, limit: Int, offset: Int): List<Notification> {
+        val pattern: String? = query?.let { buildLikePattern(it) }
+        return notificationHistoryDao.getPage(pattern = pattern, limit = limit, offset = offset)
+            .map { it.toNotification() }
+    }
+
+    private fun buildLikePattern(input: String): String {
+        val escaped: String = input
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        return "%$escaped%"
+    }
+
     suspend fun saveForRetry(notification: Notification) {
         unsentNotificationDao.upsert(notification.toUnsentNotificationDBO())
     }
