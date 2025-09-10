@@ -85,6 +85,7 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
 
     implementation(libs.androidx.datastore.preferences)
 

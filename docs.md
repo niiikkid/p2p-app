@@ -52,7 +52,7 @@
    - По `BOOT_COMPLETED` запускает `PushNotificationHandlerService` в foreground.
 
 ## Сетевой протокол
-- **Endpoint**: фиксированный `DEFAULT_URL` из `data/utils/Constants.kt` (`https://nikkid.ru/api/sms`). Поле `url` в `SettingsData` пока не используется в `NotificationRepository` (см. раздел Несоответствия/улучшения).
+- **Endpoint**: фиксированный `DEFAULT_URL` из `data/utils/Constants.kt` (`https://nikkid.ru/api/app/sms`). Поле `url` в `SettingsData` пока не используется в `NotificationRepository` (см. раздел Несоответствия/улучшения).
 - **Заголовки**:
   - `Accept: application/json`
   - `Idempotency-Key: <UUID из уведомления>`

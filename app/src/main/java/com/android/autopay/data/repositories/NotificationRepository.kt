@@ -143,7 +143,7 @@ class NotificationRepository @Inject constructor(
     }
 
     private fun buildConnectUrl(settingsUrl: String): String {
-        val apiSmsSegment: String = "/api/sms"
+        val apiSmsSegment: String = "/api/app/sms"
         val connectPath: String = "/api/app/device/connect"
         return if (settingsUrl.contains(apiSmsSegment)) {
             settingsUrl.replace(apiSmsSegment, connectPath)

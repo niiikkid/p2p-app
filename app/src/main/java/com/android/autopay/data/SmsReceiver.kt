@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
+import org.json.JSONObject
 
 @AndroidEntryPoint
 class SmsReceiver : BroadcastReceiver() {
@@ -54,8 +55,19 @@ class SmsReceiver : BroadcastReceiver() {
             scope.launch {
                 repository.saveToHistory(notification)
 
+                val json = JSONObject().apply {
+                    put("sender", notification.sender)
+                    put("message", notification.message)
+                    put("timestamp", notification.timestamp)
+                    put("type", notification.type.wireName)
+                }
+                Log.d(TAG, "HTTP -> Тело запроса: ${json}")
+
                 try {
                     repository.sendToServer(notification)
+                        .onSuccess {
+                            Log.d(TAG, "HTTP <- Успешный ответ от сервера (см. тело в перехватчике)")
+                        }
                         .onFailure {
                             Log.d(
                                 TAG,

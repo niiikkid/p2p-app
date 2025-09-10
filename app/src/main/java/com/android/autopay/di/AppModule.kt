@@ -1,11 +1,13 @@
 package com.android.autopay.di
 
 import android.content.Context
+import android.util.Log
 import com.android.autopay.data.local.db.NotificationDatabase
 import com.android.autopay.data.local.db.NotificationHistoryDao
 import com.android.autopay.data.local.db.UnsentNotificationDao
 import com.android.autopay.data.utils.AppDispatchers
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,7 +27,14 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun provideOkHttpClient(): OkHttpClient = OkHttpClient()
+        fun provideOkHttpClient(): OkHttpClient {
+            val logger = HttpLoggingInterceptor { message ->
+                Log.d("HTTP", message)
+            }.apply { level = HttpLoggingInterceptor.Level.BODY }
+            return OkHttpClient.Builder()
+                .addInterceptor(logger)
+                .build()
+        }
 
         @Provides
         @Singleton
