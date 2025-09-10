@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,7 +32,8 @@ class MainViewModel @Inject constructor(
             val settingsData = dataStoreManager.getSettings().first()
             _state.value = state.value.copy(
                 token = settingsData.token,
-                isConnected = settingsData.isConnected
+                isConnected = settingsData.isConnected,
+                lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt
             )
             updateIsSavePossible()
         }
@@ -78,6 +82,23 @@ class MainViewModel @Inject constructor(
                     cpuAbi = cpuAbi
                 )
             )
+        }
+
+        viewModelScope.launch {
+            dataStoreManager.getSettings()
+                .map { it.lastSuccessfulPingAt }
+                .distinctUntilChanged()
+                .collect { lastPingAt ->
+                    _state.value = state.value.copy(lastSuccessfulPingAt = lastPingAt)
+                }
+        }
+
+        viewModelScope.launch {
+            while (true) {
+                val elapsedSeconds: Long = if (state.value.lastSuccessfulPingAt == 0L) 0L else (System.currentTimeMillis() - state.value.lastSuccessfulPingAt) / 1000
+                _state.value = state.value.copy(lastPingElapsedSeconds = elapsedSeconds)
+                delay(1000)
+            }
         }
     }
 
@@ -195,7 +216,9 @@ object MainContract {
         val isPageLoading: Boolean = false,
         val nextOffset: Int = 0,
         val pageSize: Int = 20,
-        val canLoadMore: Boolean = true
+        val canLoadMore: Boolean = true,
+        val lastSuccessfulPingAt: Long = 0L,
+        val lastPingElapsedSeconds: Long = 0L
     ) {
 
         data class NotificationStats(

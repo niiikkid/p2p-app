@@ -125,6 +125,16 @@ private fun MainScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Card(colors = CardDefaults.cardColors()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "Последний успешный пинг: ", style = MaterialTheme.typography.bodySmall)
+                                val seconds = state.lastPingElapsedSeconds
+                                Text(text = if (state.lastSuccessfulPingAt == 0L) "—" else "$seconds c", style = MaterialTheme.typography.bodySmall, color = DarkGreen)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(colors = CardDefaults.cardColors()) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             val statusText = if (state.isConnected) stringResource(id = R.string.successfully_connected) else stringResource(id = R.string.not_connected)
                             val statusColor = if (state.isConnected) DarkGreen else Color.Red

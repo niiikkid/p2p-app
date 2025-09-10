@@ -154,7 +154,15 @@ class PushNotificationHandlerService : NotificationListenerService() {
         val headers = Headers.Builder().add("Accept", "application/json").add("Access-Token", settings.token).build()
         val request = Request.Builder().url(pingUrl).headers(headers).get().build()
         withContext(appDispatchers.io) {
-            try { httpClient.newCall(request).execute().use { } } catch (e: Exception) { Log.d(TAG, "Ping failed: ${e.message}", e) }
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        dataStoreManager.saveLastSuccessfulPingAt(System.currentTimeMillis())
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Ping failed: ${e.message}", e)
+            }
         }
     }
 

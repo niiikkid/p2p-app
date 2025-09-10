@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.android.autopay.data.models.SettingsData
 import com.android.autopay.data.utils.DEFAULT_URL
@@ -25,6 +26,7 @@ class DataStoreManager @Inject constructor(
             settings[stringPreferencesKey(URL_KEY)] = settingsData.url
             settings[stringPreferencesKey(TOKEN_KEY)] = settingsData.token
             settings[booleanPreferencesKey(IS_CONNECTED_KEY)] = settingsData.isConnected
+            settings[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] = settingsData.lastSuccessfulPingAt
         }
     }
 
@@ -33,11 +35,19 @@ class DataStoreManager @Inject constructor(
             val savedUrl: String = preferences[stringPreferencesKey(URL_KEY)] ?: DEFAULT_URL
             val savedToken: String = preferences[stringPreferencesKey(TOKEN_KEY)] ?: ""
             val savedIsConnected: Boolean = preferences[booleanPreferencesKey(IS_CONNECTED_KEY)] ?: false
+            val savedLastSuccessfulPingAt: Long = preferences[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] ?: 0L
             SettingsData(
                 url = savedUrl,
                 token = savedToken,
-                isConnected = savedIsConnected
+                isConnected = savedIsConnected,
+                lastSuccessfulPingAt = savedLastSuccessfulPingAt
             )
+        }
+    }
+
+    suspend fun saveLastSuccessfulPingAt(timestampMs: Long): Unit {
+        context.dataStore.edit { settings ->
+            settings[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] = timestampMs
         }
     }
 
@@ -46,5 +56,6 @@ class DataStoreManager @Inject constructor(
         private const val URL_KEY: String = "url"
         private const val TOKEN_KEY: String = "token"
         private const val IS_CONNECTED_KEY: String = "is_connected"
+        private const val LAST_SUCCESSFUL_PING_AT_KEY: String = "last_successful_ping_at"
     }
 }
