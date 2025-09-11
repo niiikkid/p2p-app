@@ -66,7 +66,7 @@ private fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AutoPay") },
+                title = { Text("P2P Bridge") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF3F4F6))
             )
         },

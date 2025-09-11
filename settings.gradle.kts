@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AutoPay"
+rootProject.name = "P2P Bridge"
 include(":app")
  

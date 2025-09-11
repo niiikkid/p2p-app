@@ -1,10 +1,10 @@
 ---
-description: Правила Cursor для p2p-app (AutoPay Android)
+description: Правила Cursor для p2p-app (P2PBridge Android)
 globs: []
 alwaysApply: true
 ---
 
-### Cursor Rule: p2p-app (AutoPay Android)
+### Cursor Rule: p2p-app (P2PBridge Android)
 
 - **Назначение**: приложение собирает входящие SMS и push-уведомления, сохраняет их в локальную историю и отправляет на внешний сервер с ретраями при сбоях.
 - **Парадигма**: Android, Kotlin, Jetpack Compose, MVVM, DI через Hilt, локальное хранилище Room, настройки через DataStore, фоновые ретраи через WorkManager.

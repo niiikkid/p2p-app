@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AutoPay</string>
+    <string name="app_name">P2P Bridge</string>
     <string name="url">URL</string>
     <string name="token">Токен</string>
     <string name="connect">Подключить</string>
