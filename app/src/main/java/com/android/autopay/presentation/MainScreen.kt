@@ -93,7 +93,7 @@ private fun MainScreen(
                                 .fillMaxWidth()
                                 .height(44.dp)
                         ) {
-                            Text("Подключить приложение")
+                            Text("Подключить устройство")
                         }
                     } else {
                         OutlinedTextField(
@@ -113,7 +113,6 @@ private fun MainScreen(
                         ) {
                             if (state.isConnecting) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    CircularProgressIndicator(modifier = Modifier.height(20.dp))
                                     Text("Подключаем...")
                                 }
                             } else {
