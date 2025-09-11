@@ -46,6 +46,9 @@ class MainViewModel @Inject constructor(
                             receiveAll = totalCount
                         )
                     )
+                    // При изменении количества записей в истории перезагружаем первую страницу логов,
+                    // чтобы список обновлялся без перезапуска приложения.
+                    loadFirstPage()
                 }
         }
 
