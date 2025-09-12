@@ -84,8 +84,8 @@ private fun MainScreen(
                 var showConnectForm by remember { mutableStateOf(false) }
                 Column(
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
+                        .align(Alignment.TopCenter)
+                        .padding(top = 80.dp, start = 16.dp, end = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (!showConnectForm) {
