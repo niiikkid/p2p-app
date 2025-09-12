@@ -10,6 +10,7 @@ import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.models.Sms
 import com.android.autopay.data.repositories.NotificationRepository
 import com.android.autopay.data.utils.AppDispatchers
+import com.android.autopay.data.utils.StableId
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -42,15 +43,17 @@ class SmsReceiver : BroadcastReceiver() {
                 message = fullMessage
             )
 
+            val stableKey: String = StableId.buildForSms(sender = sms.originatingAddress, message = sms.message)
+
             val notification = Notification(
                 sender = sms.originatingAddress,
                 message = sms.message,
                 timestamp = System.currentTimeMillis(),
                 type = NotificationType.SMS,
-                idempotencyKey = UUID.randomUUID().toString()
+                idempotencyKey = stableKey
             )
 
-            Log.d(TAG, "Получено смс: $notification")
+            Log.d(TAG, "Получено смс: sender=${notification.sender}, message=${notification.message}")
 
             scope.launch {
                 repository.saveToHistory(notification)
@@ -74,10 +77,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 "Не удалось отправить СМС на сервер. Добавляем в очередь на повтор: ${it.message}",
                             )
 
-                            val notificationForRetry = notification.copy(
-                                idempotencyKey = UUID.randomUUID().toString()
-                            )
-                            repository.saveForRetry(notificationForRetry)
+                            repository.saveForRetry(notification)
                         }
                 } catch (e: IOException) {
                     Log.d(

@@ -11,6 +11,7 @@ import com.android.autopay.data.local.mappers.toNotification
 import com.android.autopay.data.local.mappers.toUnsentNotificationDBO
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.NotificationType
+import com.android.autopay.data.utils.StableId
 import com.android.autopay.data.utils.CONNECT_URL
 import com.android.autopay.data.utils.AppDispatchers
 import kotlinx.coroutines.flow.Flow
@@ -121,6 +122,7 @@ class NotificationRepository @Inject constructor(
     }
 
     suspend fun saveToHistory(notification: Notification) {
+        if (notificationHistoryDao.existsByIdempotencyKey(notification.idempotencyKey)) return
         notificationHistoryDao.upsert(notification.toHistoryNotificationDBO())
     }
 
@@ -155,6 +157,7 @@ class NotificationRepository @Inject constructor(
     }
 
     suspend fun saveForRetry(notification: Notification) {
+        if (unsentNotificationDao.existsByIdempotencyKey(notification.idempotencyKey)) return
         unsentNotificationDao.upsert(notification.toUnsentNotificationDBO())
     }
 

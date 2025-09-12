@@ -23,6 +23,7 @@ import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_ID
 import com.android.autopay.data.utils.NOTIFICATION_TEXT_EXTRAS_KEY
 import com.android.autopay.data.utils.NOTIFICATION_TITLE_EXTRAS_KEY
 import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
+import com.android.autopay.data.utils.StableId
 import com.android.autopay.data.utils.PING_ENDPOINT_PATH
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.data.DataStoreManager
@@ -113,15 +114,17 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
         val push = Push(packageName = packageName, message = combinedMessage)
 
+        val stableKey: String = StableId.buildForPush(packageName = push.packageName, combinedMessage = push.message)
+
         val notification = Notification(
             sender = push.packageName,
             message = push.message,
             timestamp = System.currentTimeMillis(),
             type = NotificationType.PUSH,
-            idempotencyKey = UUID.randomUUID().toString()
+            idempotencyKey = stableKey
         )
 
-        Log.d(TAG, "Получен пуш: $notification")
+        Log.d(TAG, "Получен пуш: sender=${notification.sender}, message=${notification.message}")
 
         scope.launch {
             repository.saveToHistory(notification)
@@ -134,10 +137,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
                             "Не удалось отправить Push-уведомление на сервер. Добавляем в очередь на повтор: ${it.message}"
                         )
 
-                        val notificationForRetry = notification.copy(
-                            idempotencyKey = UUID.randomUUID().toString()
-                        )
-                        repository.saveForRetry(notificationForRetry)
+                        repository.saveForRetry(notification)
                     }
             } catch (e: IOException) {
                 Log.d(

@@ -18,4 +18,7 @@ interface UnsentNotificationDao {
 
     @Query("SELECT * FROM unsent_notifications")
     suspend fun getAll(): List<UnsentNotificationDBO>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM unsent_notifications WHERE idempotencyKey = :key LIMIT 1)")
+    suspend fun existsByIdempotencyKey(key: String): Boolean
 }

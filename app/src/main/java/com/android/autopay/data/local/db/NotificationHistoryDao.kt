@@ -30,4 +30,7 @@ interface NotificationHistoryDao {
             "ORDER BY timestamp DESC LIMIT :limit OFFSET :offset"
     )
     suspend fun getPage(pattern: String?, limit: Int, offset: Int): List<HistoryNotificationDBO>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM notification_history WHERE idempotencyKey = :key LIMIT 1)")
+    suspend fun existsByIdempotencyKey(key: String): Boolean
 }

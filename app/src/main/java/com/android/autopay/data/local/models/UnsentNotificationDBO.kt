@@ -1,9 +1,13 @@
 package com.android.autopay.data.local.models
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "unsent_notifications")
+@Entity(
+    tableName = "unsent_notifications",
+    indices = [Index(value = ["idempotencyKey"], unique = true)]
+)
 data class UnsentNotificationDBO(
     val sender: String,
     val message: String,
