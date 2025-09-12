@@ -13,3 +13,4 @@ const val PUSH_MESSAGE_SEPARATOR: String = " | "
 const val PING_WORK_NAME: String = "device_ping_worker"
 const val PING_ENDPOINT_PATH: String = "/api/app/device/ping"
 const val PING_INTERVAL_SECONDS: Long = 15
+const val RETRY_INTERVAL_SECONDS: Long = 10

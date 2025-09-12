@@ -14,6 +14,7 @@ data class HistoryNotificationDBO(
     val timestamp: Long,
     val type: String,
     val idempotencyKey: String,
+    val sentAt: Long = 0L,
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0
 )

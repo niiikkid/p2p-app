@@ -126,6 +126,10 @@ class NotificationRepository @Inject constructor(
         notificationHistoryDao.upsert(notification.toHistoryNotificationDBO())
     }
 
+    suspend fun markSentSuccess(notification: Notification, sentAtTimestamp: Long = System.currentTimeMillis()) {
+        notificationHistoryDao.updateSentAtByIdempotencyKey(notification.idempotencyKey, sentAtTimestamp)
+    }
+
     fun observeHistory(): Flow<List<Notification>> {
         return notificationHistoryDao.observeAll().map { list ->
             list.map { it.toNotification() }
@@ -142,10 +146,18 @@ class NotificationRepository @Inject constructor(
         return notificationHistoryDao.observeCount()
     }
 
+    fun observeRetryQueueCount(): Flow<Int> {
+        return unsentNotificationDao.observeCount()
+    }
+
     suspend fun getHistoryPage(query: String?, limit: Int, offset: Int): List<Notification> {
         val pattern: String? = query?.let { buildLikePattern(it) }
-        return notificationHistoryDao.getPage(pattern = pattern, limit = limit, offset = offset)
+        val items = notificationHistoryDao.getPage(pattern = pattern, limit = limit, offset = offset)
             .map { it.toNotification() }
+        return items.map { item ->
+            val isQueued = unsentNotificationDao.existsByIdempotencyKey(item.idempotencyKey)
+            item.copy(queuedForRetry = isQueued)
+        }
     }
 
     private fun buildLikePattern(input: String): String {

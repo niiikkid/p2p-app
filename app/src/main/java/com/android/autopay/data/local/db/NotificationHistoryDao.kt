@@ -33,4 +33,7 @@ interface NotificationHistoryDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM notification_history WHERE idempotencyKey = :key LIMIT 1)")
     suspend fun existsByIdempotencyKey(key: String): Boolean
+
+    @Query("UPDATE notification_history SET sentAt = :sentAt WHERE idempotencyKey = :key")
+    suspend fun updateSentAtByIdempotencyKey(key: String, sentAt: Long)
 }

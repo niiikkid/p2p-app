@@ -19,7 +19,6 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequest
 import androidx.work.WorkManager
 import com.android.autopay.data.PingWorker
-import com.android.autopay.data.NotificationRetryWorker
 import com.android.autopay.data.PushNotificationHandlerService
 import com.android.autopay.data.utils.PERIODIC_WORK_NAME
 import com.android.autopay.data.utils.PING_WORK_NAME
@@ -52,7 +51,7 @@ class MainActivity : ComponentActivity() {
             Intent(this, PushNotificationHandlerService::class.java)
         )
 
-        setupPeriodicRetrySendWork()
+        // Ретраи теперь выполняются в foreground-сервисе каждые RETRY_INTERVAL_SECONDS
         // Пинг теперь выполняется в foreground-сервисе каждые PING_INTERVAL_SECONDS
 
         setContent {
@@ -62,24 +61,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setupPeriodicRetrySendWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val periodicWorkRequest = PeriodicWorkRequest.Builder(
-            NotificationRetryWorker::class.java, 15, TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this)
-            .enqueueUniquePeriodicWork(
-                PERIODIC_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                periodicWorkRequest
-            )
-    }
+    // Удалено планирование периодического NotificationRetryWorker
 
     private fun setupPeriodicPingWork() {
         val constraints = Constraints.Builder()

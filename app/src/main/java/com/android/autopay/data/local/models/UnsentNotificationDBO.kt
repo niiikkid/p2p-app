@@ -14,6 +14,7 @@ data class UnsentNotificationDBO(
     val timestamp: Long,
     val type: String,
     val idempotencyKey: String,
+    val lastRetryAt: Long = 0L,
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0
 )

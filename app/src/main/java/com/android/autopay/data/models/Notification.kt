@@ -6,4 +6,6 @@ data class Notification(
     val timestamp: Long,
     val type: NotificationType,
     val idempotencyKey: String,
+    val sentAt: Long = 0L,
+    val queuedForRetry: Boolean = false,
 )

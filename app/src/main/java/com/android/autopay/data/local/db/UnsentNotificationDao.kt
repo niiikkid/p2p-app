@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.android.autopay.data.local.models.UnsentNotificationDBO
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UnsentNotificationDao {
@@ -21,4 +22,7 @@ interface UnsentNotificationDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM unsent_notifications WHERE idempotencyKey = :key LIMIT 1)")
     suspend fun existsByIdempotencyKey(key: String): Boolean
+
+    @Query("SELECT COUNT(*) FROM unsent_notifications")
+    fun observeCount(): Flow<Int>
 }

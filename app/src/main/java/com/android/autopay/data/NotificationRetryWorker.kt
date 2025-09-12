@@ -33,6 +33,7 @@ constructor(
                         val result = repository.sendToServer(notification)
                         if (result.isSuccess) {
                             repository.deleteForRetry(notification)
+                            repository.markSentSuccess(notification)
                             true
                         } else {
                             false

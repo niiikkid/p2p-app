@@ -304,11 +304,28 @@ fun NotificationView(notification: Notification) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            val timeText: String = Instant
+            val createdAtText: String = Instant
                 .ofEpochMilli(notification.timestamp)
                 .atZone(ZoneId.systemDefault())
                 .toLocalDateTime()
                 .format(logTimestampFormatter)
+            val statusColor: Color = when {
+                notification.sentAt > 0L -> DarkGreen
+                notification.queuedForRetry -> Color(0xFFFF9800)
+                else -> Color(0xFFEF4444)
+            }
+            val statusText: String = when {
+                notification.sentAt > 0L -> "Отправлено"
+                notification.queuedForRetry -> "В очереди на повтор"
+                else -> "Не отправлено"
+            }
+            val sentAtText: String? = if (notification.sentAt > 0L) {
+                Instant
+                    .ofEpochMilli(notification.sentAt)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDateTime()
+                    .format(logTimestampFormatter)
+            } else null
             Row {
                 Text(
                     text = stringResource(R.string.type_title),
@@ -331,11 +348,31 @@ fun NotificationView(notification: Notification) {
                 Text(text = notification.message)
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = timeText,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF9CA3AF)
-            )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor
+                    )
+                    if (sentAtText != null) {
+                        Text(
+                            text = "Отправлено: $sentAtText",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                    Text(
+                        text = "Создано: $createdAtText",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+                Spacer(modifier = Modifier.height(0.dp))
+            }
         }
     }
 }

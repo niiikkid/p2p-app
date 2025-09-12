@@ -60,10 +60,22 @@ class MainViewModel @Inject constructor(
                             lastNotifications = latest
                         )
                     )
+                    // Если меняются последние записи (в т.ч. статусы: отправлено/в очереди),
+                    // перезагружаем первую страницу, чтобы актуализировать лог-лист.
+                    loadFirstPage()
                 }
         }
 
         viewModelScope.launch { loadFirstPage() }
+
+        // Следим за изменениями очереди на повторную отправку. Любое изменение влияет на статус в списке.
+        viewModelScope.launch {
+            notificationRepository.observeRetryQueueCount()
+                .distinctUntilChanged()
+                .collect {
+                    loadFirstPage()
+                }
+        }
 
         viewModelScope.launch {
             val deviceName = Build.MODEL

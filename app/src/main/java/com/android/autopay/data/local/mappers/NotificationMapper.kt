@@ -10,7 +10,8 @@ fun Notification.toHistoryNotificationDBO() = HistoryNotificationDBO(
     message = message,
     timestamp = timestamp,
     type = type.wireName,
-    idempotencyKey = idempotencyKey
+    idempotencyKey = idempotencyKey,
+    sentAt = sentAt
 )
 
 fun HistoryNotificationDBO.toNotification() = Notification(
@@ -18,7 +19,9 @@ fun HistoryNotificationDBO.toNotification() = Notification(
     message = message,
     timestamp = timestamp,
     type = NotificationType.fromWireName(type),
-    idempotencyKey = idempotencyKey
+    idempotencyKey = idempotencyKey,
+    sentAt = sentAt,
+    queuedForRetry = false
 )
 
 fun Notification.toUnsentNotificationDBO() = UnsentNotificationDBO(
@@ -34,5 +37,7 @@ fun UnsentNotificationDBO.toNotification() = Notification(
     message = message,
     timestamp = timestamp,
     type = NotificationType.fromWireName(type),
-    idempotencyKey = idempotencyKey
+    idempotencyKey = idempotencyKey,
+    sentAt = 0L,
+    queuedForRetry = true
 )

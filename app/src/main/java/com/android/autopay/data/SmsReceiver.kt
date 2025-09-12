@@ -70,6 +70,7 @@ class SmsReceiver : BroadcastReceiver() {
                     repository.sendToServer(notification)
                         .onSuccess {
                             Log.d(TAG, "HTTP <- Успешный ответ от сервера (см. тело в перехватчике)")
+                            repository.markSentSuccess(notification)
                         }
                         .onFailure {
                             Log.d(

@@ -26,10 +26,14 @@ import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.data.utils.StableId
 import com.android.autopay.data.utils.PING_ENDPOINT_PATH
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
+import com.android.autopay.data.utils.RETRY_INTERVAL_SECONDS
 import com.android.autopay.data.DataStoreManager
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -59,6 +63,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     private val scope by lazy { CoroutineScope(appDispatchers.io) }
     private var pingJob: Job? = null
+    private var retryJob: Job? = null
     @Inject lateinit var httpClient: OkHttpClient
     @Inject lateinit var dataStoreManager: DataStoreManager
 
@@ -77,6 +82,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         }
 
         startPingLoop()
+        startRetryLoop()
         return START_STICKY
     }
 
@@ -131,6 +137,9 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
             try {
                 repository.sendToServer(notification)
+                    .onSuccess {
+                        repository.markSentSuccess(notification)
+                    }
                     .onFailure {
                         Log.d(
                             TAG,
@@ -160,6 +169,16 @@ class PushNotificationHandlerService : NotificationListenerService() {
         }
     }
 
+    private fun startRetryLoop() {
+        if (retryJob?.isActive == true) return
+        retryJob = scope.launch {
+            while (isActive) {
+                try { performRetrySend() } catch (_: Exception) {}
+                delay(RETRY_INTERVAL_SECONDS * 1000L)
+            }
+        }
+    }
+
     private suspend fun performPing() {
         val settings = dataStoreManager.getSettings().first()
         if (!settings.isConnected || settings.token.isBlank()) return
@@ -176,6 +195,34 @@ class PushNotificationHandlerService : NotificationListenerService() {
             } catch (e: Exception) {
                 Log.d(TAG, "Ping failed: ${e.message}", e)
             }
+        }
+    }
+
+    private suspend fun performRetrySend() {
+        val settings = dataStoreManager.getSettings().first()
+        if (!settings.isConnected || settings.token.isBlank()) return
+        val notifications = repository.getForRetry()
+        if (notifications.isEmpty()) return
+        val results: List<Boolean> = coroutineScope {
+            notifications.map { notification ->
+                async(appDispatchers.io) {
+                    try {
+                        val result = repository.sendToServer(notification)
+                        if (result.isSuccess) {
+                            repository.deleteForRetry(notification)
+                            repository.markSentSuccess(notification)
+                            true
+                        } else {
+                            false
+                        }
+                    } catch (_: IOException) {
+                        false
+                    }
+                }
+            }.awaitAll()
+        }
+        if (!results.all { it }) {
+            Log.d(TAG, "Retry send: some notifications failed, will try again later")
         }
     }
 
