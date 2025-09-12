@@ -46,6 +46,9 @@ import com.android.autopay.presentation.ui.theme.DarkGreen
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 
 @Composable
 fun MainScreen() {
@@ -101,7 +104,9 @@ private fun MainScreen(
                             onValueChange = { onIntent(MainContract.Intent.ChangeToken(it)) },
                             label = { Text("Токен") },
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { onIntent(MainContract.Intent.Save) })
                         )
                         Button(
                             onClick = { onIntent(MainContract.Intent.Save) },
