@@ -49,6 +49,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+private val logTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
 @Composable
 fun MainScreen() {
@@ -299,6 +304,11 @@ fun NotificationView(notification: Notification) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
+            val timeText: String = Instant
+                .ofEpochMilli(notification.timestamp)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime()
+                .format(logTimestampFormatter)
             Row {
                 Text(
                     text = stringResource(R.string.type_title),
@@ -320,6 +330,12 @@ fun NotificationView(notification: Notification) {
                 )
                 Text(text = notification.message)
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = timeText,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF9CA3AF)
+            )
         }
     }
 }
