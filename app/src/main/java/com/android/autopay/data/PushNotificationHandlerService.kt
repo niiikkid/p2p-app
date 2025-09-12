@@ -5,7 +5,7 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
 import android.os.Build
 import android.provider.Telephony
 import android.service.notification.NotificationListenerService
@@ -76,7 +76,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(FOREGROUND_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(FOREGROUND_NOTIFICATION_ID, notification)
         }
@@ -236,6 +236,22 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val restartIntent = Intent(applicationContext, PushNotificationHandlerService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            applicationContext.startForegroundService(restartIntent)
+        } else {
+            applicationContext.startService(restartIntent)
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
+    override fun onDestroy() {
+        pingJob?.cancel()
+        retryJob?.cancel()
+        super.onDestroy()
     }
 
     private fun createNotificationChannel() {

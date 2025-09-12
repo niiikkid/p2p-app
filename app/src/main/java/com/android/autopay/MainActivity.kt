@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -45,6 +46,10 @@ class MainActivity : ComponentActivity() {
 
         if (!isBatteryOptimizationDisabled()) {
             openBatteryOptimizationSettings()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPostNotificationsPermission()
         }
 
         startForegroundService(
@@ -112,6 +117,16 @@ class MainActivity : ComponentActivity() {
         val notificationPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
         notificationPermissionLauncher.launch(intent)
+    }
+
+    private fun requestPostNotificationsPermission() {
+        val permission = android.Manifest.permission.POST_NOTIFICATIONS
+        val grant = ContextCompat.checkSelfPermission(this, permission)
+        if (grant == PackageManager.PERMISSION_GRANTED) return
+        val requestPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) {}
+        requestPermissionLauncher.launch(permission)
     }
 
     private fun isBatteryOptimizationDisabled(): Boolean {
