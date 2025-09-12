@@ -21,6 +21,8 @@ import com.android.autopay.data.utils.AppDispatchers
 import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
 import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_ID
 import com.android.autopay.data.utils.NOTIFICATION_TEXT_EXTRAS_KEY
+import com.android.autopay.data.utils.NOTIFICATION_TITLE_EXTRAS_KEY
+import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.data.utils.PING_ENDPOINT_PATH
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.data.DataStoreManager
@@ -89,6 +91,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
     private fun handleNotification(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
         val text = sbn.notification.extras.getString(NOTIFICATION_TEXT_EXTRAS_KEY)
+        val title = sbn.notification.extras.getString(NOTIFICATION_TITLE_EXTRAS_KEY)
 
         val notificationManager: NotificationManager =
             this.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -98,7 +101,17 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
         if (packageName == this.packageName) return
 
-        val push = Push(packageName = packageName, message = text ?: "")
+        val body: String = text?.trim().orEmpty()
+        val header: String = title?.trim().orEmpty()
+        val combinedMessage: String = if (header.isNotBlank() && body.isNotBlank()) {
+            header + PUSH_MESSAGE_SEPARATOR + body
+        } else if (body.isNotBlank()) {
+            body
+        } else {
+            header
+        }
+
+        val push = Push(packageName = packageName, message = combinedMessage)
 
         val notification = Notification(
             sender = push.packageName,
