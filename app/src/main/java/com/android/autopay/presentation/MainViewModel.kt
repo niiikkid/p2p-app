@@ -182,23 +182,27 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun loadFirstPage() {
-        _state.value = state.value.copy(
-            isPageLoading = true,
-            pagedNotifications = emptyList(),
-            nextOffset = 0,
-            canLoadMore = true
-        )
+        _state.value = state.value.copy(isPageLoading = true)
         val page = notificationRepository.getHistoryPage(
             query = state.value.searchQuery.ifBlank { null },
             limit = state.value.pageSize,
             offset = 0
         )
-        _state.value = state.value.copy(
-            pagedNotifications = page,
-            nextOffset = page.size,
-            isPageLoading = false,
-            canLoadMore = page.size >= state.value.pageSize
-        )
+        val current = state.value.pagedNotifications
+        if (current != page) {
+            _state.value = state.value.copy(
+                pagedNotifications = page,
+                nextOffset = page.size,
+                isPageLoading = false,
+                canLoadMore = page.size >= state.value.pageSize
+            )
+        } else {
+            _state.value = state.value.copy(
+                isPageLoading = false,
+                canLoadMore = page.size >= state.value.pageSize,
+                nextOffset = page.size
+            )
+        }
     }
 
     private suspend fun loadNextPage() {
@@ -208,12 +212,20 @@ class MainViewModel @Inject constructor(
             limit = state.value.pageSize,
             offset = state.value.nextOffset
         )
-        _state.value = state.value.copy(
-            pagedNotifications = state.value.pagedNotifications + page,
-            nextOffset = state.value.nextOffset + page.size,
-            isPageLoading = false,
-            canLoadMore = page.size >= state.value.pageSize
-        )
+        val combined = state.value.pagedNotifications + page
+        if (page.isNotEmpty() && combined != state.value.pagedNotifications) {
+            _state.value = state.value.copy(
+                pagedNotifications = combined,
+                nextOffset = state.value.nextOffset + page.size,
+                isPageLoading = false,
+                canLoadMore = page.size >= state.value.pageSize
+            )
+        } else {
+            _state.value = state.value.copy(
+                isPageLoading = false,
+                canLoadMore = page.size >= state.value.pageSize
+            )
+        }
     }
 }
 

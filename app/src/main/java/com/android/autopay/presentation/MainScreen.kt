@@ -254,26 +254,21 @@ private fun MainScreen(
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            if (state.isPageLoading) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                                    CircularProgressIndicator()
-                                }
+                            if (state.canLoadMore) {
+                                Button(
+                                    onClick = { onIntent(MainContract.Intent.LoadMoreLogs) },
+                                    enabled = !state.isPageLoading,
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp)
+                                ) { Text("Загрузить ещё") }
                             } else {
-                                if (state.canLoadMore) {
-                                    Button(
-                                        onClick = { onIntent(MainContract.Intent.LoadMoreLogs) },
-                                        shape = MaterialTheme.shapes.extraSmall,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(40.dp)
-                                    ) { Text("Загрузить ещё") }
-                                } else {
-                                    Text(
-                                        text = "Это все логи",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray
-                                    )
-                                }
+                                Text(
+                                    text = "Это все логи",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
                             }
                         }
                     }
