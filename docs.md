@@ -1,4 +1,4 @@
-# P2PBridge (p2p-app) — Техническая документация
+# P2PBridge — Техническая документация
 
 ## Назначение
 Приложение Android собирает входящие SMS и push-уведомления, сохраняет их в локальную историю и отправляет на внешний сервер с ретраями при сбоях. Пользователь указывает токен доступа. Приложение работает устойчиво в фоне, используя foreground-сервис и WorkManager.
@@ -52,7 +52,11 @@
    - По `BOOT_COMPLETED` запускает `PushNotificationHandlerService` в foreground.
 
 ## Сетевой протокол
-- **Endpoint**: фиксированный `DEFAULT_URL` из `data/utils/Constants.kt` (`https://nikkid.ru/api/app/sms`). Поле `url` в `SettingsData` пока не используется в `NotificationRepository` (см. раздел Несоответствия/улучшения).
+- **Endpoint**: пути зашиты константами, а хост конфигурируется через `BuildConfig.API_HOST`.
+- **Сборка URL**: используется `UrlBuilder.buildAbsoluteUrl(path)`; пути:
+  - `SMS_ENDPOINT_PATH = /api/app/sms`
+  - `CONNECT_ENDPOINT_PATH = /api/app/device/connect`
+  - `PING_ENDPOINT_PATH = /api/app/device/ping`
 - **Заголовки**:
   - `Accept: application/json`
   - `Idempotency-Key: <UUID из уведомления>`
@@ -75,12 +79,13 @@
     - `UnsentNotificationDao.upsert()`, `getAll()`, `delete()`
   - Мапперы: `Notification <-> HistoryNotificationDBO`, `Notification <-> UnsentNotificationDBO`
 - **DataStore**:
-  - Ключи: `token` (строка). `url` в схеме есть, но фактически не сохраняется/не читается — используется `DEFAULT_URL`.
+  - Ключи: `token`, `url`, `is_connected`, `last_successful_ping_at`.
+  - Дефолтный `url` формируется из `BuildConfig.API_HOST + SMS_ENDPOINT_PATH`.
 
 ## Репозиторий (`NotificationRepository`)
 - `sendToServer(notification)`:
   - Читает `token` из `DataStore`.
-  - Формирует заголовки и JSON, делает `POST` на `DEFAULT_URL` с OkHttp.
+  - Формирует заголовки и JSON, делает `POST` на `UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH)`.
   - Успех -> `Result.success(Unit)`; иначе `Result.failure(Exception(code))`.
 - `saveToHistory(notification)` — запись в историю.
 - `observeHistory()` — поток для UI.
@@ -118,14 +123,23 @@
 - Обработка multipart SMS: соединение всех частей в один текст.
 - Параллельные ретраи: отправка пачки с `async/awaitAll`, корректная обработка частичных успехов.
 
+## Конфигурация окружения
+- В `app/build.gradle.kts` значение `API_HOST` пробрасывается в `BuildConfig.API_HOST`.
+- Источники (по приоритету):
+  1) Переменная окружения `API_HOST`;
+  2) Файл `.env` в корне (строка вида `API_HOST=...`);
+  3) `local.properties` (ключ `API_HOST`).
+- Дефолт не используется. При отсутствии `API_HOST` сборка завершается ошибкой.
+- `.env` игнорируется в git. Используйте файл-шаблон `.env.example`:
+  - Скопируйте `.env.example` в `.env` и задайте `API_HOST=https://api.example.com`.
+- Для CI/CD рекомендуется передавать `API_HOST` через переменные окружения.
+
 ## Несоответствия/улучшения
-1. `SettingsData.url` не используется при отправке: `NotificationRepository.sendToServer()` всегда бьёт на `DEFAULT_URL`. Улучшение: читать `settings.url` из DataStore и использовать его.
-2. `DataStoreManager.saveSettings()` не сохраняет `url`. Улучшение: добавить ключ `URL_KEY` и чтение/запись `url`.
-3. Безопасность: `usesCleartextTraffic=true`. В прод-сборках включать только HTTPS и выключать флаг.
-4. Ошибки сети различать по типам/телу ответа; логировать причину.
-5. Rate limiting/Backoff: можно использовать `WorkRequest` с экспоненциальным backoff для on-demand ретраев.
-6. Персистентные ключи идемпотентности: сейчас на ретрай генерируется новый ключ — это ок, но следует учитывать логику бэка (возможно, нужен сохранённый ключ).
-7. Улучшить контроль доступности: `MainViewModel` помечает `isConnected=true` после сохранения токена — лучше валидировать токен пробным пингом.
+1. Безопасность: `usesCleartextTraffic=true`. В прод-сборках включать только HTTPS и выключать флаг.
+2. Ошибки сети различать по типам/телу ответа; логировать причину.
+3. Rate limiting/Backoff: можно использовать `WorkRequest` с экспоненциальным backoff для on-demand ретраев.
+4. Персистентные ключи идемпотентности: сейчас на ретрай генерируется новый ключ — это ок, но следует учитывать логику бэка (возможно, нужен сохранённый ключ).
+5. Улучшить контроль доступности: `MainViewModel` помечает `isConnected=true` после сохранения токена — лучше валидировать токен пробным пингом.
 
 ## Как собрать и запустить
 - Сборка: `./gradlew :app:assembleDebug`

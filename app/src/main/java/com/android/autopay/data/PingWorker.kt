@@ -7,6 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.android.autopay.data.utils.AppDispatchers
 import com.android.autopay.data.utils.PING_ENDPOINT_PATH
+import com.android.autopay.data.utils.UrlBuilder
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.withContext
@@ -32,8 +33,7 @@ constructor(
             return Result.success()
         }
 
-        val baseUrl: String = settings.url
-        val pingUrl: String = buildPingUrl(baseUrl)
+        val pingUrl: String = UrlBuilder.buildAbsoluteUrl(PING_ENDPOINT_PATH)
 
         val headers = Headers.Builder()
             .add("Accept", "application/json")
@@ -62,15 +62,7 @@ constructor(
         }
     }
 
-    private fun buildPingUrl(settingsUrl: String): String {
-        val apiSmsSegment: String = "/api/app/sms"
-        return if (settingsUrl.contains(apiSmsSegment)) {
-            settingsUrl.replace(apiSmsSegment, PING_ENDPOINT_PATH)
-        } else {
-            val base: String = if (settingsUrl.endsWith("/")) settingsUrl.dropLast(1) else settingsUrl
-            "$base$PING_ENDPOINT_PATH"
-        }
-    }
+    // URL строится через UrlBuilder и BuildConfig.API_HOST
 
     companion object {
         private const val TAG: String = "PingWorker"

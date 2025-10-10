@@ -9,7 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.android.autopay.data.models.SettingsData
-import com.android.autopay.data.utils.DEFAULT_URL
+import com.android.autopay.data.utils.SMS_ENDPOINT_PATH
+import com.android.autopay.data.utils.UrlBuilder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,7 +33,7 @@ class DataStoreManager @Inject constructor(
 
     fun getSettings(): Flow<SettingsData> {
         return context.dataStore.data.map { preferences: Preferences ->
-            val savedUrl: String = preferences[stringPreferencesKey(URL_KEY)] ?: DEFAULT_URL
+            val savedUrl: String = preferences[stringPreferencesKey(URL_KEY)] ?: UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH)
             val savedToken: String = preferences[stringPreferencesKey(TOKEN_KEY)] ?: ""
             val savedIsConnected: Boolean = preferences[booleanPreferencesKey(IS_CONNECTED_KEY)] ?: false
             val savedLastSuccessfulPingAt: Long = preferences[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] ?: 0L

@@ -25,6 +25,7 @@ import com.android.autopay.data.utils.NOTIFICATION_TITLE_EXTRAS_KEY
 import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.data.utils.StableId
 import com.android.autopay.data.utils.PING_ENDPOINT_PATH
+import com.android.autopay.data.utils.UrlBuilder
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.data.utils.RETRY_INTERVAL_SECONDS
 import com.android.autopay.data.DataStoreManager
@@ -182,7 +183,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
     private suspend fun performPing() {
         val settings = dataStoreManager.getSettings().first()
         if (!settings.isConnected || settings.token.isBlank()) return
-        val pingUrl: String = buildPingUrl(settings.url)
+        val pingUrl: String = UrlBuilder.buildAbsoluteUrl(PING_ENDPOINT_PATH)
         val headers = Headers.Builder().add("Accept", "application/json").add("Access-Token", settings.token).build()
         val request = Request.Builder().url(pingUrl).headers(headers).get().build()
         withContext(appDispatchers.io) {
@@ -226,13 +227,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         }
     }
 
-    private fun buildPingUrl(settingsUrl: String): String {
-        val apiSmsSegment: String = "/api/app/sms"
-        return if (settingsUrl.contains(apiSmsSegment)) settingsUrl.replace(apiSmsSegment, PING_ENDPOINT_PATH) else {
-            val base: String = if (settingsUrl.endsWith("/")) settingsUrl.dropLast(1) else settingsUrl
-            "$base$PING_ENDPOINT_PATH"
-        }
-    }
+    // URL строится через UrlBuilder и BuildConfig.API_HOST
 
     override fun onListenerDisconnected() {
         requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))

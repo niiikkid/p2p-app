@@ -12,7 +12,9 @@ import com.android.autopay.data.local.mappers.toUnsentNotificationDBO
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.utils.StableId
-import com.android.autopay.data.utils.CONNECT_URL
+import com.android.autopay.data.utils.SMS_ENDPOINT_PATH
+import com.android.autopay.data.utils.CONNECT_ENDPOINT_PATH
+import com.android.autopay.data.utils.UrlBuilder
 import com.android.autopay.data.utils.AppDispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -54,8 +56,7 @@ class NotificationRepository @Inject constructor(
             json.put("brand", Build.BRAND)
 
             val requestBody = json.toString().toRequestBody("application/json".toMediaType())
-            val settings = dataStoreManager.getSettings().first()
-            val connectUrl: String = buildConnectUrl(settings.url)
+            val connectUrl: String = UrlBuilder.buildAbsoluteUrl(CONNECT_ENDPOINT_PATH)
             val request = Request.Builder()
                 .url(connectUrl)
                 .headers(headers)
@@ -105,7 +106,7 @@ class NotificationRepository @Inject constructor(
 
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
-            .url(settings.url)
+            .url(UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH))
             .headers(headers)
             .post(requestBody)
             .build()
@@ -181,14 +182,5 @@ class NotificationRepository @Inject constructor(
         unsentNotificationDao.delete(notification.toUnsentNotificationDBO())
     }
 
-    private fun buildConnectUrl(settingsUrl: String): String {
-        val apiSmsSegment: String = "/api/app/sms"
-        val connectPath: String = "/api/app/device/connect"
-        return if (settingsUrl.contains(apiSmsSegment)) {
-            settingsUrl.replace(apiSmsSegment, connectPath)
-        } else {
-            val base: String = if (settingsUrl.endsWith("/")) settingsUrl.dropLast(1) else settingsUrl
-            "$base$connectPath"
-        }
-    }
+    // URL строится через UrlBuilder и BuildConfig.API_HOST
 }

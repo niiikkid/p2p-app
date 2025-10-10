@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,25 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.room)
+}
+
+// Helper to read simple KEY=VALUE lines from .env (without external plugins)
+fun readDotEnvFile(file: java.io.File): Map<String, String> {
+    val result: MutableMap<String, String> = mutableMapOf()
+    if (!file.exists()) return result
+    file.forEachLine { rawLine: String ->
+        val line: String = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@forEachLine
+        val idx: Int = line.indexOf('=')
+        if (idx <= 0) return@forEachLine
+        val key: String = line.substring(0, idx).trim()
+        var value: String = line.substring(idx + 1).trim()
+        if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.substring(1, value.length - 1)
+        }
+        if (key.isNotEmpty()) result[key] = value
+    }
+    return result
 }
 
 android {
@@ -24,6 +44,20 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // BuildConfig field for API host loaded from ENV/.env/local.properties (no defaults)
+        val envApiHost: String? = System.getenv("API_HOST")?.trim()?.takeIf { it.isNotBlank() }
+        val dotEnv: Map<String, String> = readDotEnvFile(rootProject.file(".env"))
+        val dotEnvApiHost: String? = dotEnv["API_HOST"]?.trim()?.takeIf { it.isNotBlank() }
+        val localProps: Properties = Properties()
+        val localPropsFile: java.io.File = rootProject.file("local.properties")
+        if (localPropsFile.exists()) {
+            localPropsFile.inputStream().use { inputStream -> localProps.load(inputStream) }
+        }
+        val localPropsApiHost: String? = localProps.getProperty("API_HOST")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
+        val apiHost: String = (envApiHost ?: dotEnvApiHost ?: localPropsApiHost)
+            ?: throw GradleException("API_HOST is required. Provide it via ENV, .env or local.properties")
+        buildConfigField("String", "API_HOST", "\"$apiHost\"")
     }
 
     buildTypes {
@@ -41,6 +75,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
