@@ -154,9 +154,9 @@ class MainViewModel @Inject constructor(
             if (connectResult.isSuccess) {
                 dataStoreManager.saveSettings(
                     SettingsData(
-                        url = currentSettings.url,
                         token = tokenToSave,
-                        isConnected = true
+                        isConnected = true,
+                        lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt
                     )
                 )
                 _state.value = state.value.copy(isConnected = true, isConnecting = false)

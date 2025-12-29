@@ -24,11 +24,10 @@ import com.android.autopay.data.utils.NOTIFICATION_TEXT_EXTRAS_KEY
 import com.android.autopay.data.utils.NOTIFICATION_TITLE_EXTRAS_KEY
 import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.data.utils.StableId
-import com.android.autopay.data.utils.PING_ENDPOINT_PATH
-import com.android.autopay.data.utils.UrlBuilder
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.data.utils.RETRY_INTERVAL_SECONDS
 import com.android.autopay.data.DataStoreManager
+import com.android.autopay.data.network.NotificationApi
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -39,14 +38,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import java.io.IOException
-import java.util.UUID
 import javax.inject.Inject
-import okhttp3.Headers
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 
 @AndroidEntryPoint
@@ -61,11 +55,11 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     @Inject
     lateinit var appDispatchers: AppDispatchers
-
+    @Inject
+    lateinit var notificationApi: NotificationApi
     private val scope by lazy { CoroutineScope(appDispatchers.io) }
     private var pingJob: Job? = null
     private var retryJob: Job? = null
-    @Inject lateinit var httpClient: OkHttpClient
     @Inject lateinit var dataStoreManager: DataStoreManager
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -183,20 +177,13 @@ class PushNotificationHandlerService : NotificationListenerService() {
     private suspend fun performPing() {
         val settings = dataStoreManager.getSettings().first()
         if (!settings.isConnected || settings.token.isBlank()) return
-        val pingUrl: String = UrlBuilder.buildAbsoluteUrl(PING_ENDPOINT_PATH)
-        val headers = Headers.Builder().add("Accept", "application/json").add("Access-Token", settings.token).build()
-        val request = Request.Builder().url(pingUrl).headers(headers).get().build()
-        withContext(appDispatchers.io) {
-            try {
-                httpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        dataStoreManager.saveLastSuccessfulPingAt(System.currentTimeMillis())
-                    }
-                }
-            } catch (e: Exception) {
-                Log.d(TAG, "Ping failed: ${e.message}", e)
+        notificationApi.ping(settings.token)
+            .onSuccess {
+                dataStoreManager.saveLastSuccessfulPingAt(System.currentTimeMillis())
             }
-        }
+            .onFailure {
+                Log.d(TAG, "Ping failed: ${it.message}", it)
+            }
     }
 
     private suspend fun performRetrySend() {
@@ -226,8 +213,6 @@ class PushNotificationHandlerService : NotificationListenerService() {
             Log.d(TAG, "Retry send: some notifications failed, will try again later")
         }
     }
-
-    // URL строится через UrlBuilder и BuildConfig.API_HOST
 
     override fun onListenerDisconnected() {
         requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))

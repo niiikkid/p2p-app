@@ -10,23 +10,10 @@ import com.android.autopay.data.local.mappers.toHistoryNotificationDBO
 import com.android.autopay.data.local.mappers.toNotification
 import com.android.autopay.data.local.mappers.toUnsentNotificationDBO
 import com.android.autopay.data.models.Notification
-import com.android.autopay.data.models.NotificationType
-import com.android.autopay.data.utils.StableId
-import com.android.autopay.data.utils.SMS_ENDPOINT_PATH
-import com.android.autopay.data.utils.CONNECT_ENDPOINT_PATH
-import com.android.autopay.data.utils.UrlBuilder
-import com.android.autopay.data.utils.AppDispatchers
+import com.android.autopay.data.network.NotificationApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
-import okhttp3.Headers
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
-import java.io.IOException
 import javax.inject.Inject
 import dagger.hilt.android.qualifiers.ApplicationContext
 
@@ -35,53 +22,19 @@ class NotificationRepository @Inject constructor(
     private val dataStoreManager: DataStoreManager,
     private val unsentNotificationDao: UnsentNotificationDao,
     private val notificationHistoryDao: NotificationHistoryDao,
-    private val httpClient: OkHttpClient,
-    private val appDispatchers: AppDispatchers
+    private val notificationApi: NotificationApi
 ) {
 
     suspend fun connect(token: String): Result<Unit> {
-        return withContext(appDispatchers.io) {
-            val headers = Headers.Builder()
-                .add("Accept", "application/json")
-                .add("Access-Token", token)
-                .add("Content-Type", "application/json")
-                .build()
-
-            val androidId: String = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            val json = JSONObject()
-            json.put("android_id", androidId)
-            json.put("device_model", Build.MODEL)
-            json.put("android_version", Build.VERSION.RELEASE)
-            json.put("manufacturer", Build.MANUFACTURER)
-            json.put("brand", Build.BRAND)
-
-            val requestBody = json.toString().toRequestBody("application/json".toMediaType())
-            val connectUrl: String = UrlBuilder.buildAbsoluteUrl(CONNECT_ENDPOINT_PATH)
-            val request = Request.Builder()
-                .url(connectUrl)
-                .headers(headers)
-                .post(requestBody)
-                .build()
-
-            try {
-                httpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        return@withContext Result.success(Unit)
-                    }
-
-                    val errorBody: String = response.body?.string() ?: ""
-                    return@withContext try {
-                        val obj = JSONObject(errorBody)
-                        val message = obj.optString("message", response.code.toString())
-                        Result.failure(Exception(message))
-                    } catch (e: Exception) {
-                        Result.failure(Exception(response.code.toString()))
-                    }
-                }
-            } catch (e: IOException) {
-                return@withContext Result.failure(e)
-            }
-        }
+        val androidId: String = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        val payload: NotificationApi.DeviceInfoPayload = NotificationApi.DeviceInfoPayload(
+            androidId = androidId,
+            deviceModel = Build.MODEL,
+            androidVersion = Build.VERSION.RELEASE,
+            manufacturer = Build.MANUFACTURER,
+            brand = Build.BRAND
+        )
+        return notificationApi.connect(token, payload)
     }
 
     suspend fun sendToServer(
@@ -92,34 +45,7 @@ class NotificationRepository @Inject constructor(
             return Result.failure(IllegalStateException("App is not connected"))
         }
 
-        val headers = Headers.Builder()
-            .add("Accept", "application/json")
-            .add("Idempotency-Key", notification.idempotencyKey)
-            .add("Access-Token", settings.token)
-            .build()
-
-        val json = JSONObject()
-        json.put("sender", notification.sender)
-        json.put("message", notification.message)
-        json.put("timestamp", notification.timestamp)
-        json.put("type", notification.type.wireName)
-
-        val requestBody = json.toString().toRequestBody("application/json".toMediaType())
-        val request = Request.Builder()
-            .url(UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH))
-            .headers(headers)
-            .post(requestBody)
-            .build()
-
-        return withContext(appDispatchers.io) {
-            httpClient.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    return@withContext Result.success(Unit)
-                }
-
-                return@withContext Result.failure(Exception(response.code.toString()))
-            }
-        }
+        return notificationApi.sendNotification(settings.token, notification)
     }
 
     suspend fun saveToHistory(notification: Notification) {
@@ -181,6 +107,4 @@ class NotificationRepository @Inject constructor(
     suspend fun deleteForRetry(notification: Notification) {
         unsentNotificationDao.delete(notification.toUnsentNotificationDBO())
     }
-
-    // URL строится через UrlBuilder и BuildConfig.API_HOST
 }

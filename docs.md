@@ -52,11 +52,8 @@
    - По `BOOT_COMPLETED` запускает `PushNotificationHandlerService` в foreground.
 
 ## Сетевой протокол
-- **Endpoint**: пути зашиты константами, а хост конфигурируется через `BuildConfig.API_HOST`.
-- **Сборка URL**: используется `UrlBuilder.buildAbsoluteUrl(path)`; пути:
-  - `SMS_ENDPOINT_PATH = /api/app/sms`
-  - `CONNECT_ENDPOINT_PATH = /api/app/device/connect`
-  - `PING_ENDPOINT_PATH = /api/app/device/ping`
+- **Endpoint**: `ApiEndpoints` формирует абсолютные URL (`BuildConfig.API_HOST` из ENV/.env/local.properties).
+- **Маршруты**: `getSmsUrl()`, `getConnectUrl()`, `getPingUrl()`.
 - **Заголовки**:
   - `Accept: application/json`
   - `Idempotency-Key: <UUID из уведомления>`
@@ -79,21 +76,18 @@
     - `UnsentNotificationDao.upsert()`, `getAll()`, `delete()`
   - Мапперы: `Notification <-> HistoryNotificationDBO`, `Notification <-> UnsentNotificationDBO`
 - **DataStore**:
-  - Ключи: `token`, `url`, `is_connected`, `last_successful_ping_at`.
-  - Дефолтный `url` формируется из `BuildConfig.API_HOST + SMS_ENDPOINT_PATH`.
+  - Ключи: `token`, `is_connected`, `last_successful_ping_at`.
 
 ## Репозиторий (`NotificationRepository`)
-- `sendToServer(notification)`:
-  - Читает `token` из `DataStore`.
-  - Формирует заголовки и JSON, делает `POST` на `UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH)`.
-  - Успех -> `Result.success(Unit)`; иначе `Result.failure(Exception(code))`.
+- `connect(token)` -> `NotificationApi.connect()`.
+- `sendToServer(notification)` -> `NotificationApi.sendNotification()` с токеном из `DataStore`.
 - `saveToHistory(notification)` — запись в историю.
 - `observeHistory()` — поток для UI.
 - Очередь ретраев: `saveForRetry()`, `getForRetry()`, `deleteForRetry()`.
 
 ## DI и фоновые диспетчеры
 - `App` — включает Hilt, интегрирует HiltWorkerFactory в WorkManager.
-- `AppModule` — провайдит `AppDispatchers`, `NotificationDatabase`, `NotificationHistoryDao`, `UnsentNotificationDao`.
+- `AppModule` — провайдит `AppDispatchers`, `NotificationApi`, `NotificationDatabase`, `NotificationHistoryDao`, `UnsentNotificationDao`.
 - `AppDispatchers` — набор корутин-диспетчеров (Default/IO/Main/Unconfined).
 
 ## Презентационный слой

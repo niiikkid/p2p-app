@@ -5,6 +5,7 @@ import android.util.Log
 import com.android.autopay.data.local.db.NotificationDatabase
 import com.android.autopay.data.local.db.NotificationHistoryDao
 import com.android.autopay.data.local.db.UnsentNotificationDao
+import com.android.autopay.data.network.NotificationApi
 import com.android.autopay.data.utils.AppDispatchers
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -34,6 +35,15 @@ abstract class AppModule {
             return OkHttpClient.Builder()
                 .addInterceptor(logger)
                 .build()
+        }
+
+        @Provides
+        @Singleton
+        fun provideNotificationApi(
+            httpClient: OkHttpClient,
+            appDispatchers: AppDispatchers
+        ): NotificationApi {
+            return NotificationApi(httpClient, appDispatchers)
         }
 
         @Provides

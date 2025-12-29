@@ -9,8 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.android.autopay.data.models.SettingsData
-import com.android.autopay.data.utils.SMS_ENDPOINT_PATH
-import com.android.autopay.data.utils.UrlBuilder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -24,7 +22,6 @@ class DataStoreManager @Inject constructor(
 
     suspend fun saveSettings(settingsData: SettingsData): Unit {
         context.dataStore.edit { settings ->
-            settings[stringPreferencesKey(URL_KEY)] = settingsData.url
             settings[stringPreferencesKey(TOKEN_KEY)] = settingsData.token
             settings[booleanPreferencesKey(IS_CONNECTED_KEY)] = settingsData.isConnected
             settings[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] = settingsData.lastSuccessfulPingAt
@@ -33,12 +30,10 @@ class DataStoreManager @Inject constructor(
 
     fun getSettings(): Flow<SettingsData> {
         return context.dataStore.data.map { preferences: Preferences ->
-            val savedUrl: String = preferences[stringPreferencesKey(URL_KEY)] ?: UrlBuilder.buildAbsoluteUrl(SMS_ENDPOINT_PATH)
             val savedToken: String = preferences[stringPreferencesKey(TOKEN_KEY)] ?: ""
             val savedIsConnected: Boolean = preferences[booleanPreferencesKey(IS_CONNECTED_KEY)] ?: false
             val savedLastSuccessfulPingAt: Long = preferences[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] ?: 0L
             SettingsData(
-                url = savedUrl,
                 token = savedToken,
                 isConnected = savedIsConnected,
                 lastSuccessfulPingAt = savedLastSuccessfulPingAt
@@ -54,7 +49,6 @@ class DataStoreManager @Inject constructor(
 
     companion object {
         const val DATASTORE_NAME: String = "settings"
-        private const val URL_KEY: String = "url"
         private const val TOKEN_KEY: String = "token"
         private const val IS_CONNECTED_KEY: String = "is_connected"
         private const val LAST_SUCCESSFUL_PING_AT_KEY: String = "last_successful_ping_at"
