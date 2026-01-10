@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -54,6 +56,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val logTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+private const val TOKEN_VISIBLE_LENGTH: Int = 4
+private const val TOKEN_MASK_PLACEHOLDER: String = "..."
+
+private fun maskToken(token: String): String {
+    val visibleCount: Int = TOKEN_VISIBLE_LENGTH * 2
+    if (token.length <= visibleCount) return token
+    val prefix: String = token.take(TOKEN_VISIBLE_LENGTH)
+    val suffix: String = token.takeLast(TOKEN_VISIBLE_LENGTH)
+    return "$prefix$TOKEN_MASK_PLACEHOLDER$suffix"
+}
 
 @Composable
 fun MainScreen() {
@@ -70,6 +82,8 @@ private fun MainScreen(
     onIntent: (MainContract.Intent) -> Unit
 ) {
     var showDeviceInfo by remember { mutableStateOf(false) }
+    var showTokenDialog by remember { mutableStateOf(false) }
+    var newToken by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -85,6 +99,48 @@ private fun MainScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
+            if (showTokenDialog) {
+                AlertDialog(
+                    onDismissRequest = { showTokenDialog = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onIntent(MainContract.Intent.ReRegister(newToken.trim()))
+                                showTokenDialog = false
+                            },
+                            enabled = newToken.isNotBlank() && !state.isConnecting
+                        ) {
+                            Text("Сменить")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showTokenDialog = false }) {
+                            Text("Отмена")
+                        }
+                    },
+                    title = { Text("Перерегистрировать устройство") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text = "Введите новый токен, чтобы переподключить устройство.")
+                            OutlinedTextField(
+                                value = newToken,
+                                onValueChange = { newToken = it },
+                                label = { Text("Новый токен") },
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    val trimmedToken: String = newToken.trim()
+                                    if (trimmedToken.isNotEmpty()) {
+                                        onIntent(MainContract.Intent.ReRegister(trimmedToken))
+                                        showTokenDialog = false
+                                    }
+                                }),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                )
+            }
             if (!state.isConnected) {
                 var showConnectForm by remember { mutableStateOf(false) }
                 Column(
@@ -141,36 +197,6 @@ private fun MainScreen(
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val automationStatusText = if (state.isAutomationEnabled) "Автоматика включена" else "Автоматика выключена"
-                            val automationStatusColor = if (state.isAutomationEnabled) DarkGreen else Color.Red
-                            Text(
-                                text = automationStatusText,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = automationStatusColor
-                            )
-                            Button(
-                                onClick = { onIntent(MainContract.Intent.ToggleAutomation) },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                            ) {
-                                Text(if (state.isAutomationEnabled) "Остановить автоматику" else "Запустить автоматику")
-                            }
-                        }
-                    }
                     Box(
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -234,6 +260,99 @@ private fun MainScreen(
                                 DeviceInfoRowView(title = "API Level: ", value = state.deviceInfo.apiLevel)
                                 DeviceInfoRowView(title = "Build Number: ", value = state.deviceInfo.buildNumber)
                                 DeviceInfoRowView(title = "CPU Architecture: ", value = state.deviceInfo.cpuAbi)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Текущий токен",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color(0xFF111827)
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = maskToken(state.token),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFF111827)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        newToken = state.token
+                                        showTokenDialog = true
+                                    },
+                                    enabled = !state.isConnecting
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_edit_token),
+                                        contentDescription = "Изменить токен",
+                                        tint = Color(0xFF111827)
+                                    )
+                                }
+                            }
+                            if (state.isConnecting) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier
+                                            .height(18.dp)
+                                            .width(18.dp)
+                                    )
+                                    Text(
+                                        text = "Обновляем токен...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val automationStatusText = if (state.isAutomationEnabled) "Автоматика включена" else "Автоматика выключена"
+                            val automationStatusColor = if (state.isAutomationEnabled) DarkGreen else Color.Red
+                            Text(
+                                text = automationStatusText,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = automationStatusColor
+                            )
+                            Button(
+                                onClick = { onIntent(MainContract.Intent.ToggleAutomation) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                            ) {
+                                Text(if (state.isAutomationEnabled) "Остановить автоматику" else "Запустить автоматику")
                             }
                         }
                     }

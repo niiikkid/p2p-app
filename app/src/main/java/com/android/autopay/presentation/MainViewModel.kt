@@ -122,6 +122,7 @@ class MainViewModel @Inject constructor(
         when (intent) {
             is MainContract.Intent.ChangeToken -> onChangeToken(intent)
             is MainContract.Intent.Save -> onSave()
+            is MainContract.Intent.ReRegister -> onReRegister(intent)
             is MainContract.Intent.ChangeSearchQuery -> onChangeSearchQuery(intent)
             is MainContract.Intent.LoadMoreLogs -> onLoadMore()
             is MainContract.Intent.ToggleAutomation -> onToggleAutomation()
@@ -148,29 +149,7 @@ class MainViewModel @Inject constructor(
 
     private fun onSave() {
         viewModelScope.launch {
-            _state.value = state.value.copy(isConnecting = true, errorMessage = null)
-            val currentSettings = dataStoreManager.getSettings().first()
-            val tokenToSave = state.value.token
-
-            val connectResult = notificationRepository.connect(tokenToSave)
-            if (connectResult.isSuccess) {
-                dataStoreManager.saveSettings(
-                    SettingsData(
-                        token = tokenToSave,
-                        isConnected = true,
-                        isAutomationEnabled = currentSettings.isAutomationEnabled,
-                        lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt
-                    )
-                )
-                _state.value = state.value.copy(isConnected = true, isConnecting = false)
-            } else {
-                _state.value = state.value.copy(
-                    isConnected = false,
-                    isConnecting = false,
-                    errorMessage = connectResult.exceptionOrNull()?.message
-                )
-            }
-            updateIsSavePossible()
+            connectAndPersist(state.value.token)
         }
     }
 
@@ -190,6 +169,40 @@ class MainViewModel @Inject constructor(
             dataStoreManager.saveAutomationEnabled(targetState)
             _state.value = state.value.copy(isAutomationEnabled = targetState)
         }
+    }
+
+    private fun onReRegister(intent: MainContract.Intent.ReRegister) {
+        viewModelScope.launch {
+            connectAndPersist(intent.token)
+        }
+    }
+
+    private suspend fun connectAndPersist(token: String) {
+        _state.value = state.value.copy(
+            token = token,
+            isConnecting = true,
+            errorMessage = null
+        )
+        val currentSettings = dataStoreManager.getSettings().first()
+        val connectResult = notificationRepository.connect(token)
+        if (connectResult.isSuccess) {
+            dataStoreManager.saveSettings(
+                SettingsData(
+                    token = token,
+                    isConnected = true,
+                    isAutomationEnabled = currentSettings.isAutomationEnabled,
+                    lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt
+                )
+            )
+            _state.value = state.value.copy(isConnected = true, isConnecting = false)
+        } else {
+            _state.value = state.value.copy(
+                isConnected = false,
+                isConnecting = false,
+                errorMessage = connectResult.exceptionOrNull()?.message
+            )
+        }
+        updateIsSavePossible()
     }
 
     private suspend fun loadFirstPage() {
@@ -279,6 +292,7 @@ object MainContract {
     sealed class Intent {
         data class ChangeToken(val token: String) : Intent()
         data object Save : Intent()
+        data class ReRegister(val token: String) : Intent()
         data class ChangeSearchQuery(val query: String) : Intent()
         data object LoadMoreLogs : Intent()
         data object ToggleAutomation : Intent()
