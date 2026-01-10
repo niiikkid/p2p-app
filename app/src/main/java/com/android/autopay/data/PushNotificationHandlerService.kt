@@ -87,10 +87,14 @@ class PushNotificationHandlerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        handleNotification(sbn)
+        scope.launch {
+            val settings = dataStoreManager.getSettings().first()
+            if (!settings.isAutomationEnabled) return@launch
+            handleNotification(sbn)
+        }
     }
 
-    private fun handleNotification(sbn: StatusBarNotification) {
+    private suspend fun handleNotification(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
         val text = sbn.notification.extras.getString(NOTIFICATION_TEXT_EXTRAS_KEY)
         val title = sbn.notification.extras.getString(NOTIFICATION_TITLE_EXTRAS_KEY)
@@ -127,30 +131,28 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
         Log.d(TAG, "Получен пуш: sender=${notification.sender}, message=${notification.message}")
 
-        scope.launch {
-            repository.saveToHistory(notification)
+        repository.saveToHistory(notification)
 
-            try {
-                repository.sendToServer(notification)
-                    .onSuccess {
-                        repository.markSentSuccess(notification)
-                    }
-                    .onFailure {
-                        Log.d(
-                            TAG,
-                            "Не удалось отправить Push-уведомление на сервер. Добавляем в очередь на повтор: ${it.message}"
-                        )
+        try {
+            repository.sendToServer(notification)
+                .onSuccess {
+                    repository.markSentSuccess(notification)
+                }
+                .onFailure {
+                    Log.d(
+                        TAG,
+                        "Не удалось отправить Push-уведомление на сервер. Добавляем в очередь на повтор: ${it.message}"
+                    )
 
-                        repository.saveForRetry(notification)
-                    }
-            } catch (e: IOException) {
-                Log.d(
-                    TAG,
-                    "Не удалось отправить Push-уведомление на сервер. Добавляем в очередь на повтор: ${e.message}",
-                    e
-                )
-                repository.saveForRetry(notification)
-            }
+                    repository.saveForRetry(notification)
+                }
+        } catch (e: IOException) {
+            Log.d(
+                TAG,
+                "Не удалось отправить Push-уведомление на сервер. Добавляем в очередь на повтор: ${e.message}",
+                e
+            )
+            repository.saveForRetry(notification)
         }
     }
 
@@ -176,7 +178,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     private suspend fun performPing() {
         val settings = dataStoreManager.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank()) return
+        if (!settings.isConnected || settings.token.isBlank() || !settings.isAutomationEnabled) return
         notificationApi.ping(settings.token)
             .onSuccess {
                 dataStoreManager.saveLastSuccessfulPingAt(System.currentTimeMillis())
@@ -188,7 +190,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
 
     private suspend fun performRetrySend() {
         val settings = dataStoreManager.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank()) return
+        if (!settings.isConnected || settings.token.isBlank() || !settings.isAutomationEnabled) return
         val notifications = repository.getForRetry()
         if (notifications.isEmpty()) return
         val results: List<Boolean> = coroutineScope {

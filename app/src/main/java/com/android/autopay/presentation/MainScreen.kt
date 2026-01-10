@@ -141,6 +141,36 @@ private fun MainScreen(
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val automationStatusText = if (state.isAutomationEnabled) "Автоматика включена" else "Автоматика выключена"
+                            val automationStatusColor = if (state.isAutomationEnabled) DarkGreen else Color.Red
+                            Text(
+                                text = automationStatusText,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = automationStatusColor
+                            )
+                            Button(
+                                onClick = { onIntent(MainContract.Intent.ToggleAutomation) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                            ) {
+                                Text(if (state.isAutomationEnabled) "Остановить автоматику" else "Запустить автоматику")
+                            }
+                        }
+                    }
                     Box(
                         modifier = Modifier.fillMaxWidth()
                     ) {

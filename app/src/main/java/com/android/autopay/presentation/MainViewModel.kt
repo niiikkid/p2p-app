@@ -33,6 +33,7 @@ class MainViewModel @Inject constructor(
             _state.value = state.value.copy(
                 token = settingsData.token,
                 isConnected = settingsData.isConnected,
+                isAutomationEnabled = settingsData.isAutomationEnabled,
                 lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt
             )
             updateIsSavePossible()
@@ -123,6 +124,7 @@ class MainViewModel @Inject constructor(
             is MainContract.Intent.Save -> onSave()
             is MainContract.Intent.ChangeSearchQuery -> onChangeSearchQuery(intent)
             is MainContract.Intent.LoadMoreLogs -> onLoadMore()
+            is MainContract.Intent.ToggleAutomation -> onToggleAutomation()
         }
     }
 
@@ -156,6 +158,7 @@ class MainViewModel @Inject constructor(
                     SettingsData(
                         token = tokenToSave,
                         isConnected = true,
+                        isAutomationEnabled = currentSettings.isAutomationEnabled,
                         lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt
                     )
                 )
@@ -179,6 +182,14 @@ class MainViewModel @Inject constructor(
     private fun onLoadMore() {
         if (state.value.isPageLoading || !state.value.canLoadMore) return
         viewModelScope.launch { loadNextPage() }
+    }
+
+    private fun onToggleAutomation() {
+        viewModelScope.launch {
+            val targetState: Boolean = !state.value.isAutomationEnabled
+            dataStoreManager.saveAutomationEnabled(targetState)
+            _state.value = state.value.copy(isAutomationEnabled = targetState)
+        }
     }
 
     private suspend fun loadFirstPage() {
@@ -244,6 +255,7 @@ object MainContract {
         val nextOffset: Int = 0,
         val pageSize: Int = 20,
         val canLoadMore: Boolean = true,
+        val isAutomationEnabled: Boolean = true,
         val lastSuccessfulPingAt: Long = 0L,
         val lastPingElapsedSeconds: Long = 0L
     ) {
@@ -269,5 +281,6 @@ object MainContract {
         data object Save : Intent()
         data class ChangeSearchQuery(val query: String) : Intent()
         data object LoadMoreLogs : Intent()
+        data object ToggleAutomation : Intent()
     }
 }

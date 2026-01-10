@@ -22,7 +22,7 @@ constructor(
 
     override suspend fun doWork(): Result {
         val settings = dataStoreManager.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank()) {
+        if (!settings.isConnected || settings.token.isBlank() || !settings.isAutomationEnabled) {
             return Result.success()
         }
 

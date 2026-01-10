@@ -24,6 +24,7 @@ class DataStoreManager @Inject constructor(
         context.dataStore.edit { settings ->
             settings[stringPreferencesKey(TOKEN_KEY)] = settingsData.token
             settings[booleanPreferencesKey(IS_CONNECTED_KEY)] = settingsData.isConnected
+            settings[booleanPreferencesKey(IS_AUTOMATION_ENABLED_KEY)] = settingsData.isAutomationEnabled
             settings[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] = settingsData.lastSuccessfulPingAt
         }
     }
@@ -32,10 +33,12 @@ class DataStoreManager @Inject constructor(
         return context.dataStore.data.map { preferences: Preferences ->
             val savedToken: String = preferences[stringPreferencesKey(TOKEN_KEY)] ?: ""
             val savedIsConnected: Boolean = preferences[booleanPreferencesKey(IS_CONNECTED_KEY)] ?: false
+            val savedIsAutomationEnabled: Boolean = preferences[booleanPreferencesKey(IS_AUTOMATION_ENABLED_KEY)] ?: true
             val savedLastSuccessfulPingAt: Long = preferences[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] ?: 0L
             SettingsData(
                 token = savedToken,
                 isConnected = savedIsConnected,
+                isAutomationEnabled = savedIsAutomationEnabled,
                 lastSuccessfulPingAt = savedLastSuccessfulPingAt
             )
         }
@@ -47,10 +50,17 @@ class DataStoreManager @Inject constructor(
         }
     }
 
+    suspend fun saveAutomationEnabled(isEnabled: Boolean): Unit {
+        context.dataStore.edit { settings ->
+            settings[booleanPreferencesKey(IS_AUTOMATION_ENABLED_KEY)] = isEnabled
+        }
+    }
+
     companion object {
         const val DATASTORE_NAME: String = "settings"
         private const val TOKEN_KEY: String = "token"
         private const val IS_CONNECTED_KEY: String = "is_connected"
+        private const val IS_AUTOMATION_ENABLED_KEY: String = "is_automation_enabled"
         private const val LAST_SUCCESSFUL_PING_AT_KEY: String = "last_successful_ping_at"
     }
 }

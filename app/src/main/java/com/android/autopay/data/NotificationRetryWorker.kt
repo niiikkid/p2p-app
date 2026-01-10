@@ -5,12 +5,14 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.android.autopay.data.DataStoreManager
 import com.android.autopay.data.repositories.NotificationRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import java.io.IOException
 
 
@@ -20,11 +22,16 @@ class NotificationRetryWorker
 constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
+    private val dataStoreManager: DataStoreManager,
     private val repository: NotificationRepository
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = coroutineScope {
         try {
+            val settings = dataStoreManager.getSettings().first()
+            if (!settings.isAutomationEnabled || !settings.isConnected || settings.token.isBlank()) {
+                return@coroutineScope Result.success()
+            }
             val notifications = repository.getForRetry()
             Log.d(TAG, "Found ${notifications.size} notifications to retry")
             val deferredResults = notifications.map { notification ->
