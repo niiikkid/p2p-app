@@ -1,6 +1,33 @@
+# --- Local / secrets ---
 .env
+.env.*
+!.env.example
 local.properties
+keystore.properties
+signing.properties
+
+# --- Keys / certificates / bundles ---
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+*.aab
+
+# --- OS / IDE ---
 .DS_Store
 .idea/
-.gradle
-/TECH_AUDIT.md
+*.iml
+
+# --- Build / tooling ---
+.gradle/
+.kotlin/
+**/build/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# --- Firebase (usually private for public repos) ---
+**/google-services.json
