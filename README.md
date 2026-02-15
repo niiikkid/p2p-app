@@ -14,3 +14,5 @@ Android-приложение для сбора входящих SMS и push-ув
 - Android Studio (актуальная версия под AGP 8.5.1)
 - JDK 17
 - Устройство/эмулятор Android 8.0+ (API 26+)
+
+[P2P процессинг платформа/скрипт](https://github.com/niiikkid/p2p.processing)
