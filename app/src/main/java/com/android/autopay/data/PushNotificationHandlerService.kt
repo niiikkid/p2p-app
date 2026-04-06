@@ -16,6 +16,7 @@ import com.android.autopay.R
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.models.Push
+import com.android.autopay.data.models.SettingsData
 import com.android.autopay.data.repositories.NotificationRepository
 import com.android.autopay.data.utils.AppDispatchers
 import com.android.autopay.data.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
@@ -26,6 +27,7 @@ import com.android.autopay.data.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.data.utils.StableId
 import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.data.utils.RETRY_INTERVAL_SECONDS
+import com.android.autopay.data.utils.SourceFilter
 import com.android.autopay.data.DataStoreManager
 import com.android.autopay.data.network.NotificationApi
 import dagger.hilt.android.AndroidEntryPoint
@@ -90,11 +92,11 @@ class PushNotificationHandlerService : NotificationListenerService() {
         scope.launch {
             val settings = dataStoreManager.getSettings().first()
             if (!settings.isAutomationEnabled) return@launch
-            handleNotification(sbn)
+            handleNotification(sbn, settings)
         }
     }
 
-    private suspend fun handleNotification(sbn: StatusBarNotification) {
+    private suspend fun handleNotification(sbn: StatusBarNotification, settings: SettingsData) {
         val packageName = sbn.packageName
         val text = sbn.notification.extras.getString(NOTIFICATION_TEXT_EXTRAS_KEY)
         val title = sbn.notification.extras.getString(NOTIFICATION_TITLE_EXTRAS_KEY)
@@ -106,6 +108,11 @@ class PushNotificationHandlerService : NotificationListenerService() {
         if (packageName == Telephony.Sms.getDefaultSmsPackage(this)) return
 
         if (packageName == this.packageName) return
+        dataStoreManager.addKnownBankApplication(packageName)
+        if (!SourceFilter.isBankApplicationAllowed(packageName, settings.selectedBankApplications)) {
+            Log.d(TAG, "Push пропущен фильтром источников: package=$packageName")
+            return
+        }
 
         val body: String = text?.trim().orEmpty()
         val header: String = title?.trim().orEmpty()
@@ -196,6 +203,14 @@ class PushNotificationHandlerService : NotificationListenerService() {
         val results: List<Boolean> = coroutineScope {
             notifications.map { notification ->
                 async(appDispatchers.io) {
+                    if (notification.type == NotificationType.SMS && !SourceFilter.isSmsAllowed(notification.sender, settings.selectedSmsSenders)) {
+                        repository.deleteForRetry(notification)
+                        return@async true
+                    }
+                    if (notification.type == NotificationType.PUSH && !SourceFilter.isBankApplicationAllowed(notification.sender, settings.selectedBankApplications)) {
+                        repository.deleteForRetry(notification)
+                        return@async true
+                    }
                     try {
                         val result = repository.sendToServer(notification)
                         if (result.isSuccess) {

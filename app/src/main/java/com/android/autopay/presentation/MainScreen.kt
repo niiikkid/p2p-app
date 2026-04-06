@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.TextButton
@@ -51,6 +54,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
+import com.android.autopay.data.utils.SourceFilter
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -84,6 +88,8 @@ private fun MainScreen(
     var showDeviceInfo by remember { mutableStateOf(false) }
     var showTokenDialog by remember { mutableStateOf(false) }
     var newToken by remember { mutableStateOf("") }
+    var showSourceFiltersDialog by remember { mutableStateOf(false) }
+    var selectedSourceTab by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -137,6 +143,61 @@ private fun MainScreen(
                                 }),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+                )
+            }
+            if (showSourceFiltersDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSourceFiltersDialog = false },
+                    confirmButton = {
+                        TextButton(onClick = { showSourceFiltersDialog = false }) {
+                            Text("Готово")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                if (selectedSourceTab == 0) {
+                                    onIntent(MainContract.Intent.ClearSmsSources)
+                                } else {
+                                    onIntent(MainContract.Intent.ClearBankApplicationSources)
+                                }
+                            }
+                        ) {
+                            Text("Сбросить")
+                        }
+                    },
+                    title = { Text("Источники пересылки") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TabRow(selectedTabIndex = selectedSourceTab) {
+                                Tab(
+                                    selected = selectedSourceTab == 0,
+                                    onClick = { selectedSourceTab = 0 },
+                                    text = { Text("Сообщения") }
+                                )
+                                Tab(
+                                    selected = selectedSourceTab == 1,
+                                    onClick = { selectedSourceTab = 1 },
+                                    text = { Text("Банки") }
+                                )
+                            }
+                            if (selectedSourceTab == 0) {
+                                SourceSelectionList(
+                                    options = state.availableSmsSenders,
+                                    selectedSources = state.selectedSmsSenders,
+                                    emptyStateText = "Список отправителей пока пуст. Если ничего не выбрано, отправляются все SMS.",
+                                    onToggleSource = { onIntent(MainContract.Intent.ToggleSmsSource(it)) }
+                                )
+                            } else {
+                                SourceSelectionList(
+                                    options = state.availableBankApplications,
+                                    selectedSources = state.selectedBankApplications,
+                                    emptyStateText = "Список приложений пока пуст. Если ничего не выбрано, отправляются все push.",
+                                    onToggleSource = { onIntent(MainContract.Intent.ToggleBankApplicationSource(it)) }
+                                )
+                            }
                         }
                     }
                 )
@@ -346,6 +407,28 @@ private fun MainScreen(
                                 color = automationStatusColor
                             )
                             Button(
+                                onClick = {
+                                    onIntent(MainContract.Intent.RefreshSourceFilters)
+                                    showSourceFiltersDialog = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp)
+                            ) {
+                                Text("Выбрать источники")
+                            }
+                            Text(
+                                text = if (state.selectedSmsSenders.isEmpty()) "SMS: все отправители" else "SMS: выбрано ${state.selectedSmsSenders.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4B5563)
+                            )
+                            Text(
+                                text = if (state.selectedBankApplications.isEmpty()) "Банки: все приложения" else "Банки: выбрано ${state.selectedBankApplications.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4B5563)
+                            )
+                            Button(
                                 onClick = { onIntent(MainContract.Intent.ToggleAutomation) },
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier
@@ -422,6 +505,49 @@ private fun MainScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceSelectionList(
+    options: List<String>,
+    selectedSources: Set<String>,
+    emptyStateText: String,
+    onToggleSource: (String) -> Unit
+) {
+    if (options.isEmpty()) {
+        Text(
+            text = emptyStateText,
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.Gray
+        )
+        return
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        options.forEach { option ->
+            val isSelected: Boolean = selectedSources.any {
+                SourceFilter.normalizeSource(it) == SourceFilter.normalizeSource(option)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSource(option) }
+                )
+                Text(
+                    text = option,
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }

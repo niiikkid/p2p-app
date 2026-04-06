@@ -6,7 +6,9 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.android.autopay.data.DataStoreManager
+import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.repositories.NotificationRepository
+import com.android.autopay.data.utils.SourceFilter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
@@ -36,6 +38,14 @@ constructor(
             Log.d(TAG, "Found ${notifications.size} notifications to retry")
             val deferredResults = notifications.map { notification ->
                 async {
+                    if (notification.type == NotificationType.SMS && !SourceFilter.isSmsAllowed(notification.sender, settings.selectedSmsSenders)) {
+                        repository.deleteForRetry(notification)
+                        return@async true
+                    }
+                    if (notification.type == NotificationType.PUSH && !SourceFilter.isBankApplicationAllowed(notification.sender, settings.selectedBankApplications)) {
+                        repository.deleteForRetry(notification)
+                        return@async true
+                    }
                     try {
                         val result = repository.sendToServer(notification)
                         if (result.isSuccess) {

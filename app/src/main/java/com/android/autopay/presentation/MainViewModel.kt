@@ -7,6 +7,7 @@ import com.android.autopay.data.DataStoreManager
 import com.android.autopay.data.models.Notification
 import com.android.autopay.data.models.SettingsData
 import com.android.autopay.data.repositories.NotificationRepository
+import com.android.autopay.data.utils.SourceFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,8 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -26,6 +27,10 @@ class MainViewModel @Inject constructor(
 
     private val _state: MutableStateFlow<MainContract.State> = MutableStateFlow(MainContract.State())
     val state: StateFlow<MainContract.State> = _state.asStateFlow()
+    private var historySmsSenders: List<String> = emptyList()
+    private var historyBankApplications: List<String> = emptyList()
+    private var deviceSmsSenders: List<String> = emptyList()
+    private var deviceInstalledApplications: List<String> = emptyList()
 
     init {
         viewModelScope.launch {
@@ -34,9 +39,28 @@ class MainViewModel @Inject constructor(
                 token = settingsData.token,
                 isConnected = settingsData.isConnected,
                 isAutomationEnabled = settingsData.isAutomationEnabled,
-                lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt
+                lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt,
+                selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
+                selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
+                knownSmsSenders = SourceFilter.normalizeSources(settingsData.knownSmsSenders),
+                knownBankApplications = SourceFilter.normalizeSources(settingsData.knownBankApplications)
             )
+            updateAvailableSources()
             updateIsSavePossible()
+        }
+        viewModelScope.launch {
+            dataStoreManager.getSettings().collect { settingsData ->
+                _state.value = state.value.copy(
+                    selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
+                    selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
+                    knownSmsSenders = SourceFilter.normalizeSources(settingsData.knownSmsSenders),
+                    knownBankApplications = SourceFilter.normalizeSources(settingsData.knownBankApplications)
+                )
+                updateAvailableSources()
+            }
+        }
+        viewModelScope.launch {
+            refreshDeviceSourceLists()
         }
 
         viewModelScope.launch {
@@ -64,6 +88,20 @@ class MainViewModel @Inject constructor(
                     // Если меняются последние записи (в т.ч. статусы: отправлено/в очереди),
                     // перезагружаем первую страницу, чтобы актуализировать лог-лист.
                     loadFirstPage()
+                }
+        }
+        viewModelScope.launch {
+            notificationRepository.observeSmsSenders()
+                .collect { senders ->
+                    historySmsSenders = senders
+                    updateAvailableSources()
+                }
+        }
+        viewModelScope.launch {
+            notificationRepository.observeBankApplications()
+                .collect { applications ->
+                    historyBankApplications = applications
+                    updateAvailableSources()
                 }
         }
 
@@ -126,6 +164,11 @@ class MainViewModel @Inject constructor(
             is MainContract.Intent.ChangeSearchQuery -> onChangeSearchQuery(intent)
             is MainContract.Intent.LoadMoreLogs -> onLoadMore()
             is MainContract.Intent.ToggleAutomation -> onToggleAutomation()
+            is MainContract.Intent.ToggleSmsSource -> onToggleSmsSource(intent)
+            is MainContract.Intent.ToggleBankApplicationSource -> onToggleBankApplicationSource(intent)
+            is MainContract.Intent.ClearSmsSources -> onClearSmsSources()
+            is MainContract.Intent.ClearBankApplicationSources -> onClearBankApplicationSources()
+            is MainContract.Intent.RefreshSourceFilters -> onRefreshSourceFilters()
         }
     }
 
@@ -176,6 +219,61 @@ class MainViewModel @Inject constructor(
             connectAndPersist(intent.token)
         }
     }
+    private fun onToggleSmsSource(intent: MainContract.Intent.ToggleSmsSource) {
+        viewModelScope.launch {
+            val normalizedSource: String = SourceFilter.normalizeSource(intent.sender)
+            if (normalizedSource.isBlank()) return@launch
+            dataStoreManager.addKnownSmsSender(normalizedSource)
+            val updatedSources: Set<String> = if (state.value.selectedSmsSenders.contains(normalizedSource)) {
+                state.value.selectedSmsSenders - normalizedSource
+            } else {
+                state.value.selectedSmsSenders + normalizedSource
+            }
+            dataStoreManager.saveSelectedSmsSenders(updatedSources)
+            _state.value = state.value.copy(
+                selectedSmsSenders = updatedSources,
+                knownSmsSenders = state.value.knownSmsSenders + normalizedSource
+            )
+            updateAvailableSources()
+        }
+    }
+    private fun onToggleBankApplicationSource(intent: MainContract.Intent.ToggleBankApplicationSource) {
+        viewModelScope.launch {
+            val normalizedSource: String = SourceFilter.normalizeSource(intent.packageName)
+            if (normalizedSource.isBlank()) return@launch
+            dataStoreManager.addKnownBankApplication(normalizedSource)
+            val updatedSources: Set<String> = if (state.value.selectedBankApplications.contains(normalizedSource)) {
+                state.value.selectedBankApplications - normalizedSource
+            } else {
+                state.value.selectedBankApplications + normalizedSource
+            }
+            dataStoreManager.saveSelectedBankApplications(updatedSources)
+            _state.value = state.value.copy(
+                selectedBankApplications = updatedSources,
+                knownBankApplications = state.value.knownBankApplications + normalizedSource
+            )
+            updateAvailableSources()
+        }
+    }
+    private fun onClearSmsSources() {
+        viewModelScope.launch {
+            dataStoreManager.saveSelectedSmsSenders(emptySet())
+            _state.value = state.value.copy(selectedSmsSenders = emptySet())
+            updateAvailableSources()
+        }
+    }
+    private fun onClearBankApplicationSources() {
+        viewModelScope.launch {
+            dataStoreManager.saveSelectedBankApplications(emptySet())
+            _state.value = state.value.copy(selectedBankApplications = emptySet())
+            updateAvailableSources()
+        }
+    }
+    private fun onRefreshSourceFilters() {
+        viewModelScope.launch {
+            refreshDeviceSourceLists()
+        }
+    }
 
     private suspend fun connectAndPersist(token: String) {
         _state.value = state.value.copy(
@@ -191,7 +289,11 @@ class MainViewModel @Inject constructor(
                     token = token,
                     isConnected = true,
                     isAutomationEnabled = currentSettings.isAutomationEnabled,
-                    lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt
+                    lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt,
+                    selectedSmsSenders = SourceFilter.normalizeSources(currentSettings.selectedSmsSenders),
+                    selectedBankApplications = SourceFilter.normalizeSources(currentSettings.selectedBankApplications),
+                    knownSmsSenders = SourceFilter.normalizeSources(currentSettings.knownSmsSenders),
+                    knownBankApplications = SourceFilter.normalizeSources(currentSettings.knownBankApplications)
                 )
             )
             _state.value = state.value.copy(isConnected = true, isConnecting = false)
@@ -203,6 +305,27 @@ class MainViewModel @Inject constructor(
             )
         }
         updateIsSavePossible()
+    }
+    private fun updateAvailableSources() {
+        val smsSources: List<String> = SourceFilter.mergeKnownAndObserved(
+            selectedSources = state.value.selectedSmsSenders,
+            knownSources = state.value.knownSmsSenders,
+            observedSources = historySmsSenders + deviceSmsSenders
+        )
+        val bankSources: List<String> = SourceFilter.mergeKnownAndObserved(
+            selectedSources = state.value.selectedBankApplications,
+            knownSources = state.value.knownBankApplications,
+            observedSources = historyBankApplications + deviceInstalledApplications
+        )
+        _state.value = state.value.copy(
+            availableSmsSenders = smsSources,
+            availableBankApplications = bankSources
+        )
+    }
+    private suspend fun refreshDeviceSourceLists() {
+        deviceSmsSenders = notificationRepository.getDeviceSmsSenders()
+        deviceInstalledApplications = notificationRepository.getInstalledApplicationPackages()
+        updateAvailableSources()
     }
 
     private suspend fun loadFirstPage() {
@@ -270,7 +393,13 @@ object MainContract {
         val canLoadMore: Boolean = true,
         val isAutomationEnabled: Boolean = true,
         val lastSuccessfulPingAt: Long = 0L,
-        val lastPingElapsedSeconds: Long = 0L
+        val lastPingElapsedSeconds: Long = 0L,
+        val selectedSmsSenders: Set<String> = emptySet(),
+        val selectedBankApplications: Set<String> = emptySet(),
+        val knownSmsSenders: Set<String> = emptySet(),
+        val knownBankApplications: Set<String> = emptySet(),
+        val availableSmsSenders: List<String> = emptyList(),
+        val availableBankApplications: List<String> = emptyList()
     ) {
 
         data class NotificationStats(
@@ -296,5 +425,10 @@ object MainContract {
         data class ChangeSearchQuery(val query: String) : Intent()
         data object LoadMoreLogs : Intent()
         data object ToggleAutomation : Intent()
+        data class ToggleSmsSource(val sender: String) : Intent()
+        data class ToggleBankApplicationSource(val packageName: String) : Intent()
+        data object ClearSmsSources : Intent()
+        data object ClearBankApplicationSources : Intent()
+        data object RefreshSourceFilters : Intent()
     }
 }

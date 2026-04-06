@@ -10,6 +10,7 @@ import com.android.autopay.data.models.NotificationType
 import com.android.autopay.data.models.Sms
 import com.android.autopay.data.repositories.NotificationRepository
 import com.android.autopay.data.utils.AppDispatchers
+import com.android.autopay.data.utils.SourceFilter
 import com.android.autopay.data.utils.StableId
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +47,11 @@ class SmsReceiver : BroadcastReceiver() {
                 originatingAddress = originatingAddress ?: "Unknown",
                 message = fullMessage
             )
+            dataStoreManager.addKnownSmsSender(sms.originatingAddress)
+            if (!SourceFilter.isSmsAllowed(sms.originatingAddress, settings.selectedSmsSenders)) {
+                Log.d(TAG, "СМС пропущено фильтром источников: sender=${sms.originatingAddress}")
+                return@launch
+            }
             val stableKey: String = StableId.buildForSms(sender = sms.originatingAddress, message = sms.message)
             val notification = Notification(
                 sender = sms.originatingAddress,

@@ -18,6 +18,12 @@ interface NotificationHistoryDao {
 
     @Query("SELECT COUNT(*) FROM notification_history")
     fun observeCount(): Flow<Int>
+    @Query(
+        "SELECT DISTINCT sender FROM notification_history " +
+            "WHERE type = :type AND TRIM(sender) != '' " +
+            "ORDER BY sender ASC"
+    )
+    fun observeDistinctSendersByType(type: String): Flow<List<String>>
 
     @Query("SELECT * FROM notification_history ORDER BY timestamp DESC LIMIT :limit")
     fun observeLatest(limit: Int): Flow<List<HistoryNotificationDBO>>

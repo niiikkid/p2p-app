@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
         if (!isSmsPermissionGranted()) {
             requestReceiveSmsPermission()
         }
+        if (!isReadSmsPermissionGranted()) {
+            requestReadSmsPermission()
+        }
 
         if (!isNotificationServiceEnabled()) {
             requestNotificationListenerPermission()
@@ -97,6 +100,18 @@ class MainActivity : ComponentActivity() {
     private fun requestReceiveSmsPermission() {
         val permission = android.Manifest.permission.RECEIVE_SMS
 
+        val requestPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) {}
+        requestPermissionLauncher.launch(permission)
+    }
+    private fun isReadSmsPermissionGranted(): Boolean {
+        val permission = android.Manifest.permission.READ_SMS
+        val grant = ContextCompat.checkSelfPermission(this, permission)
+        return grant == PackageManager.PERMISSION_GRANTED
+    }
+    private fun requestReadSmsPermission() {
+        val permission = android.Manifest.permission.READ_SMS
         val requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) {}
