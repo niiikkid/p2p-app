@@ -33,7 +33,7 @@
     </queries>
 
     <application
-        android:name=".di.App"
+        android:name=".App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -56,7 +56,7 @@
         </activity>
 
         <service
-            android:name=".data.PushNotificationHandlerService"
+            android:name=".data.datasource.services.PushNotificationHandlerService"
             android:exported="true"
             android:foregroundServiceType="dataSync"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -66,7 +66,7 @@
         </service>
 
         <receiver
-            android:name=".data.SmsReceiver"
+            android:name=".data.datasource.receivers.SmsReceiver"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">
@@ -76,7 +76,7 @@
         </receiver>
 
         <receiver
-            android:name=".data.BootBroadcastReceiver"
+            android:name=".data.datasource.receivers.BootBroadcastReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

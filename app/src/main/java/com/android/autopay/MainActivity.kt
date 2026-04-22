@@ -5,8 +5,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Bundle
 import android.os.Build
+import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -14,20 +14,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequest
-import androidx.work.WorkManager
-import com.android.autopay.data.PingWorker
-import com.android.autopay.data.PushNotificationHandlerService
-import com.android.autopay.data.utils.PERIODIC_WORK_NAME
-import com.android.autopay.data.utils.PING_WORK_NAME
-import com.android.autopay.data.utils.PING_INTERVAL_SECONDS
-import com.android.autopay.presentation.MainScreen
-import com.android.autopay.presentation.ui.theme.AutoPayTheme
+import com.android.autopay.data.datasource.services.PushNotificationHandlerService
+import com.android.autopay.presentation.screens.MainScreen
+import com.android.autopay.presentation.theme.AutoPayTheme
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.concurrent.TimeUnit
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -35,60 +25,27 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         if (!isSmsPermissionGranted()) {
             requestReceiveSmsPermission()
         }
         if (!isReadSmsPermissionGranted()) {
             requestReadSmsPermission()
         }
-
         if (!isNotificationServiceEnabled()) {
             requestNotificationListenerPermission()
         }
-
         if (!isBatteryOptimizationDisabled()) {
             openBatteryOptimizationSettings()
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPostNotificationsPermission()
         }
-
-        startForegroundService(
-            Intent(this, PushNotificationHandlerService::class.java)
-        )
-
-        // Ретраи теперь выполняются в foreground-сервисе каждые RETRY_INTERVAL_SECONDS
-        // Пинг теперь выполняется в foreground-сервисе каждые PING_INTERVAL_SECONDS
-
+        startForegroundService(Intent(this, PushNotificationHandlerService::class.java))
         setContent {
             AutoPayTheme {
                 MainScreen()
             }
         }
-    }
-
-    // Удалено планирование периодического NotificationRetryWorker
-
-    private fun setupPeriodicPingWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val repeatIntervalMinutes: Long = TimeUnit.SECONDS.toMinutes(PING_INTERVAL_SECONDS)
-        val periodicWorkRequest = PeriodicWorkRequest.Builder(
-            PingWorker::class.java, repeatIntervalMinutes, TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this)
-            .enqueueUniquePeriodicWork(
-                PING_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                periodicWorkRequest
-            )
     }
 
     private fun isSmsPermissionGranted(): Boolean {
@@ -99,17 +56,18 @@ class MainActivity : ComponentActivity() {
 
     private fun requestReceiveSmsPermission() {
         val permission = android.Manifest.permission.RECEIVE_SMS
-
         val requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) {}
         requestPermissionLauncher.launch(permission)
     }
+
     private fun isReadSmsPermissionGranted(): Boolean {
         val permission = android.Manifest.permission.READ_SMS
         val grant = ContextCompat.checkSelfPermission(this, permission)
         return grant == PackageManager.PERMISSION_GRANTED
     }
+
     private fun requestReadSmsPermission() {
         val permission = android.Manifest.permission.READ_SMS
         val requestPermissionLauncher = registerForActivityResult(
@@ -128,7 +86,6 @@ class MainActivity : ComponentActivity() {
 
     private fun requestNotificationListenerPermission() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-
         val notificationPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
         notificationPermissionLauncher.launch(intent)
@@ -155,7 +112,6 @@ class MainActivity : ComponentActivity() {
             action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
             data = Uri.parse("package:$packageName")
         }
-
         val batteryOptimizationLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
         batteryOptimizationLauncher.launch(intent)

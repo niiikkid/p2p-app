@@ -4,34 +4,34 @@ overview: "Поэтапный рефакторинг Android-приложени�
 todos:
   - id: cleanup_orphan
     content: "Этап 0: удалить мусорный вложенный дубликат MainActivity.kt"
-    status: pending
+    status: completed
   - id: utils_top_level
     content: "Этап 1: создать utils/ на верхнем уровне, перенести SourceFilter/StableId/AppDispatchers/Constants, обновить импорты"
-    status: pending
+    status: completed
   - id: domain_layer
     content: "Этап 2: создать domain/models, domain/repository (интерфейсы NotificationRepository и SettingsRepository)"
-    status: pending
+    status: completed
   - id: data_datasource
     content: "Этап 3: перенести Room/DataStore/сеть в data/datasource/{local,preferences,remote}"
-    status: pending
+    status: completed
   - id: android_components
     content: "Этап 4: перенести Service/Receivers/Workers в data/datasource/{services,receivers,workers}, обновить AndroidManifest"
-    status: pending
+    status: completed
   - id: presentation_split
     content: "Этап 5: разделить presentation на screens/components/theme/viewmodels, вынести компоненты из MainScreen"
-    status: pending
+    status: completed
   - id: di_and_app
     content: "Этап 6: App в корневой пакет, разбить AppModule на Network/Database/Repository/Dispatchers"
-    status: pending
+    status: completed
   - id: use_cases
     content: "Этап 7: добавить 6 ключевых use case, переключить MainViewModel и Service/Receivers/Workers на них"
-    status: pending
+    status: completed
   - id: codestyle_cleanup
     content: "Этап 8: убрать пустые строки в функциях, narration-комментарии, magic numbers"
-    status: pending
+    status: completed
   - id: tests_and_build
     content: "Этап 9: обновить тесты, добавить unit-тест для SendNotificationUseCase, собрать проект"
-    status: pending
+    status: completed
 isProject: false
 ---
 
