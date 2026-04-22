@@ -4,138 +4,189 @@ globs: []
 alwaysApply: true
 ---
 
-### Cursor Rule: (P2PBridge Android)
+### Cursor Rule: Android Jetpack Compose Project
 
-- **Назначение**: приложение собирает входящие SMS и push-уведомления, сохраняет их в локальную историю и отправляет на внешний сервер с ретраями при сбоях.
-- **Парадигма**: Android, Kotlin, Jetpack Compose, MVVM, DI через Hilt, локальное хранилище Room, настройки через DataStore, фоновые ретраи через WorkManager.
+- **Назначение**: Android-приложение на Kotlin с UI на Jetpack Compose, архитектурой MVVM, DI через Hilt, локальным хранилищем Room, настройками через DataStore Preferences, сетевым слоем на OkHttp и фоновыми задачами через WorkManager.
+- **Цель**: использовать это правило как устойчивую основу для постепенного рефакторинга и дальнейшего развития проекта без конфликтов со стеком.
+- **Подход**: при рефакторинге придерживайся единой архитектурной линии и не смешивай несовместимые подходы. Предпочитай решения, которые уже соответствуют используемому стеку.
 
-### Стек и версии
-- **Kotlin/JVM/SDK**: Kotlin 2.0.0, JVM 17, minSdk 26, targetSdk 34, AGP 8.5.1.
-- **UI**: Jetpack Compose (BOM 2024.06.00), Material3.
-- **DI**: Hilt 2.51.1 (+ Hilt Worker).
-- **Фон**: WorkManager 2.9.0.
-- **Хранилище**: Room 2.6.1 (KSP), DataStore Preferences.
-- **Сеть**: OkHttp 4.12.0.
-- **Манифест**: usesCleartextTraffic=true, NotificationListenerService.
+## Стек и версии
 
+- **Kotlin/JVM/SDK**: Kotlin 2.0.0, JVM 17, minSdk 26, compileSdk 34, targetSdk 34, Android Gradle Plugin 8.5.1.
+- **Codegen**: KSP.
+- **UI**: Jetpack Compose (BOM 2024.06.00), Material 3.
+- **Архитектура**: MVVM.
+- **DI**: Hilt, включая интеграцию с Compose и Worker.
+- **Хранилище**: Room 2.6.1, DataStore Preferences.
+- **Фоновые задачи**: WorkManager.
+- **Сеть**: OkHttp 4.12.0, logging-interceptor.
+- **Прочее**: Lifecycle, Activity Compose.
+- **Тесты**: JUnit, Espresso, Compose UI tests.
 
-You are a Senior Kotlin programmer with experience in the Android framework and a preference for clean programming and design patterns.
+## Project Architecture and Best Practices
 
-Generate code, corrections, and refactorings that comply with the basic principles and nomenclature.
+```kotlin
+val androidProjectBestPractices = listOf(
+    "Follow Material Design 3 guidelines and components",
+    "Use Kotlin coroutines and Flow for asynchronous operations",
+    "Implement dependency injection using Hilt",
+    "Follow unidirectional data flow with ViewModel and UI State",
+    "Implement proper state hoisting and composition",
+    "Use Room for local persistence",
+    "Use DataStore Preferences for settings",
+    "Use WorkManager for background tasks and retries",
+    "Use OkHttp for networking",
+    "Keep architecture consistent during refactoring",
+    "Do not introduce patterns that conflict with Jetpack Compose, MVVM, Hilt, Room, DataStore, WorkManager, or OkHttp"
+)
+```
+
+## Target Folder Structure
+
+Используй эту структуру как целевую для рефакторинга проекта.
+
+```plaintext
+app/
+  src/
+    main/
+      java/com/package/
+        data/
+          datasource/
+          models/
+          repository/
+        domain/
+          models/
+          repository/
+          usecases/
+        presentation/
+          components/
+          screens/
+          theme/
+          viewmodels/
+        di/
+        utils/
+      res/
+        values/
+        drawable/
+        mipmap/
+    test/
+    androidTest/
+```
+
+## Structure Rules
+
+- Используй `data`, `domain`, `presentation` как основные архитектурные слои.
+- Помещай источники данных, DAO, Room entities, DataStore access и сетевые реализации в `data`.
+- Помещай бизнес-модели, контракты репозиториев и use cases в `domain`.
+- Помещай экраны Compose, UI-компоненты, тему и ViewModel в `presentation`.
+- Помещай Hilt modules и dependency wiring в `di`.
+- Помещай переиспользуемые утилиты в `utils`.
+- При рефакторинге перемещай код к этой структуре постепенно, сохраняя рабочее состояние проекта.
+- Не смешивай UI-логику, доступ к данным и бизнес-логику в одном классе.
+- Сохраняй консистентные имена пакетов, файлов и директорий.
 
 ## Kotlin General Guidelines
 
 ### Basic Principles
-- Always declare the type of each variable and function (parameters and return value).
-  - Avoid using any.
-  - Create necessary types.
+- Always declare the type of each variable and function parameter and return type where it improves clarity and consistency.
+- Create necessary types instead of relying on vague primitives where a domain type is more appropriate.
 - Don't leave blank lines within a function.
 
 ### Nomenclature
-
 - Use PascalCase for classes.
 - Use camelCase for variables, functions, and methods.
 - Use underscores_case for file and directory names.
-- Use UPPERCASE for environment variables.
-  - Avoid magic numbers and define constants.
+- Use UPPERCASE for constants.
+- Avoid magic numbers and define constants.
 - Start each function with a verb.
-- Use verbs for boolean variables. Example: isLoading, hasError, canDelete, etc.
-- Use complete words instead of abbreviations and correct spelling.
-  - Except for standard abbreviations like API, URL, etc.
-  - Except for well-known abbreviations:
-    - i, j for loops
-    - err for errors
-    - ctx for contexts
-    - req, res, next for middleware function parameters
+- Use verbs for boolean variables: `isLoading`, `hasError`, `canDelete`.
+- Use complete words instead of abbreviations except standard abbreviations like API and URL.
 
 ### Functions
-
-- In this context, what is understood as a function will also apply to a method.
-- Write short functions with a single purpose. Less than 20 instructions.
+- Write short functions with a single purpose.
 - Name functions with a verb and something else.
-  - If it returns a boolean, use isX or hasX, canX, etc.
-  - If it doesn't return anything, use executeX or saveX, etc.
-- Avoid nesting blocks by:
-  - Early checks and returns.
-  - Extraction to utility functions.
-- Use higher-order functions (map, filter, reduce, etc.) to avoid function nesting.
-  - Use arrow functions for simple functions (less than 3 instructions).
-  - Use named functions for non-simple functions.
-- Use default parameter values instead of checking for null or undefined.
-- Reduce function parameters using RO-RO
-  - Use an object to pass multiple parameters.
-  - Use an object to return results.
-  - Declare necessary types for input arguments and output.
-- Use a single level of abstraction.
+- If a function returns boolean, use names like `isX`, `hasX`, `canX`.
+- Prefer early returns to reduce nesting.
+- Use higher-order functions like `map`, `filter`, `reduce` where they improve readability.
+- Use default parameter values instead of extra null checks when appropriate.
+- Reduce parameter count by grouping related arguments into objects.
+- Keep a single level of abstraction inside a function.
 
 ### Data
-
 - Use data classes for data.
-- Don't abuse primitive types and encapsulate data in composite types.
-- Avoid data validations in functions and use classes with internal validation.
-- Prefer immutability for data.
-  - Use readonly for data that doesn't change.
-  - Use as val for literals that don't change.
+- Don't abuse primitive types when a composite type is clearer.
+- Prefer immutability.
+- Use `val` by default.
 
 ### Classes
-
 - Follow SOLID principles.
 - Prefer composition over inheritance.
-- Declare interfaces to define contracts.
+- Declare interfaces to define contracts where appropriate.
 - Write small classes with a single purpose.
-  - Less than 200 instructions.
-  - Less than 10 public methods.
-  - Less than 10 properties.
 
 ### Exceptions
+- Use exceptions for unexpected errors.
+- Catch exceptions only to handle an expected problem, add context, or rethrow through a higher-level handler.
 
-- Use exceptions to handle errors you don't expect.
-- If you catch an exception, it should be to:
-  - Fix an expected problem.
-  - Add context.
-  - Otherwise, use a global handler.
-
-### Testing
-
-- Follow the Arrange-Act-Assert convention for tests.
-- Name test variables clearly.
-  - Follow the convention: inputX, mockX, actualX, expectedX, etc.
-- Write unit tests for each public function.
-  - Use test doubles to simulate dependencies.
-    - Except for third-party dependencies that are not expensive to execute.
-- Write acceptance tests for each module.
-  - Follow the Given-When-Then convention.
-
-## Specific to Android
+## Android-Specific Guidelines
 
 ### Basic Principles
+- Use Jetpack Compose for UI.
+- Use Material 3 for theming and components.
+- Use MVVM for presentation logic.
+- Use ViewModel and UI State for state management.
+- Follow unidirectional data flow.
+- Use Kotlin coroutines and Flow for async and reactive state.
+- Use Hilt for dependency injection.
+- Use Room for local data persistence.
+- Use DataStore Preferences for app settings.
+- Use WorkManager for background processing and retry logic.
+- Use OkHttp for network calls.
+- Follow lifecycle-aware patterns.
+- Maintain clean separation between data, domain, and presentation layers.
 
-- Use clean architecture
-  - see repositories if you need to organize code into repositories
-- Use repository pattern for data persistence
-  - see cache if you need to cache data
-- Use MVI pattern to manage state and events in viewmodels and trigger and render them in activities / fragments
-  - see keepAlive if you need to keep the state alive
-- Use Auth Activity to manage authentication flow
-  - Splash Screen
-  - Login
-  - Register
-  - Forgot Password
-  - Verify Email
-- Use Navigation Component to manage navigation between activities/fragments
-- Use MainActivity to manage the main navigation
-  - Use BottomNavigationView to manage the bottom navigation
-  - Home
-  - Profile
-  - Settings
-  - Patients
-  - Appointments
-- Use ViewBinding to manage views
-- Use Flow / LiveData to manage UI state
-- Use xml and fragments instead of jetpack compose
-- Use Material 3 for the UI
-- Use ConstraintLayout for layouts
-### Testing
+## Compose UI Guidelines
 
-- Use the standard widget testing for flutter
-- Use integration tests for each api module.
+1. Use `remember` and `derivedStateOf` appropriately.
+2. Implement proper recomposition optimization.
+3. Use proper Compose modifiers ordering.
+4. Follow composable function naming conventions.
+5. Implement proper preview annotations.
+6. Use proper state management with `MutableState` only where appropriate.
+7. Implement proper error handling and loading states.
+8. Use proper theming with `MaterialTheme`.
+9. Follow accessibility guidelines.
+10. Implement proper animation patterns.
+11. Implement proper state hoisting.
+12. Prevent unnecessary updates and recompositions.
+
+## Testing Guidelines
+
+1. Write unit tests for ViewModels and UseCases.
+2. Implement UI tests using the Compose testing framework.
+3. Use fake repositories for testing.
+4. Implement proper coroutine dispatcher handling in tests.
+5. Follow the Arrange-Act-Assert convention for tests.
+6. Name test variables clearly: `inputX`, `mockX`, `actualX`, `expectedX`.
+7. Write tests for public behavior.
+8. Use JUnit, Espresso, and Compose UI tests according to the test level.
+
+## Performance Guidelines
+
+1. Minimize recomposition using proper keys.
+2. Use proper lazy loading with `LazyColumn` and `LazyRow`.
+3. Use efficient image loading when images are present.
+4. Use proper state management to prevent unnecessary updates.
+5. Follow proper lifecycle awareness.
+6. Implement proper memory management.
+7. Use proper background processing with WorkManager where needed.
+
+## Refactoring Guardrails
+
+- Do not introduce XML-based UI instead of Jetpack Compose.
+- Do not introduce Fragments, ViewBinding, or ConstraintLayout as a main UI direction.
+- Do not replace MVVM with a conflicting state-management pattern.
+- Do not replace Hilt, Room, DataStore, WorkManager, or OkHttp with unrelated alternatives during routine refactoring.
+- Do not mix multiple navigation or UI paradigms in parallel without a clear migration boundary.
+- Prefer incremental refactoring over large rewrites.
+- Keep each refactoring step compile-safe and testable.
