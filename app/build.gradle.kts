@@ -45,19 +45,24 @@ android {
             useSupportLibrary = true
         }
 
-        // BuildConfig field for API host loaded from ENV/.env/local.properties (no defaults)
+        // BuildConfig fields loaded from ENV/.env/local.properties
         val envApiHost: String? = System.getenv("API_HOST")?.trim()?.takeIf { it.isNotBlank() }
         val dotEnv: Map<String, String> = readDotEnvFile(rootProject.file(".env"))
         val dotEnvApiHost: String? = dotEnv["API_HOST"]?.trim()?.takeIf { it.isNotBlank() }
+        val envAppTitle: String? = System.getenv("APP_TITLE")?.trim()?.takeIf { it.isNotBlank() }
+        val dotEnvAppTitle: String? = dotEnv["APP_TITLE"]?.trim()?.takeIf { it.isNotBlank() }
         val localProps: Properties = Properties()
         val localPropsFile: java.io.File = rootProject.file("local.properties")
         if (localPropsFile.exists()) {
             localPropsFile.inputStream().use { inputStream -> localProps.load(inputStream) }
         }
         val localPropsApiHost: String? = localProps.getProperty("API_HOST")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
+        val localPropsAppTitle: String? = localProps.getProperty("APP_TITLE")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
         val apiHost: String = (envApiHost ?: dotEnvApiHost ?: localPropsApiHost)
             ?: throw GradleException("API_HOST is required. Provide it via ENV, .env or local.properties")
+        val appTitle: String = envAppTitle ?: dotEnvAppTitle ?: localPropsAppTitle ?: "P2P Bridge"
         buildConfigField("String", "API_HOST", "\"$apiHost\"")
+        buildConfigField("String", "APP_TITLE", "\"$appTitle\"")
     }
 
     buildTypes {

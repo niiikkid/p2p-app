@@ -67,8 +67,8 @@ fun SourceFiltersDialog(
                         onToggleSource = onToggleSmsSource
                     )
                 } else {
-                    SourceSelectionList(
-                        options = availableBankApplications,
+                    BankApplicationSelectionList(
+                        packageNames = availableBankApplications,
                         selectedSources = selectedBankApplications,
                         emptyStateText = "Список приложений пока пуст. Если ничего не выбрано, отправляются все push.",
                         onToggleSource = onToggleBankApplicationSource

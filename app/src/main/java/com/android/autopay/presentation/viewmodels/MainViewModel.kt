@@ -3,6 +3,7 @@ package com.android.autopay.presentation.viewmodels
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.repository.NotificationRepository
 import com.android.autopay.domain.repository.SettingsRepository
 import com.android.autopay.domain.usecases.ConnectDeviceUseCase
@@ -69,7 +70,7 @@ class MainViewModel @Inject constructor(
                 _state.value = state.value.copy(
                     notificationStats = state.value.notificationStats.copy(receiveAll = totalCount)
                 )
-                loadFirstPage()
+                loadLogsPage(state.value.currentLogsPage)
             }
         }
         viewModelScope.launch {
@@ -77,7 +78,7 @@ class MainViewModel @Inject constructor(
                 _state.value = state.value.copy(
                     notificationStats = state.value.notificationStats.copy(lastNotifications = latest)
                 )
-                loadFirstPage()
+                loadLogsPage(state.value.currentLogsPage)
             }
         }
         viewModelScope.launch {
@@ -92,11 +93,11 @@ class MainViewModel @Inject constructor(
                 updateAvailableSources()
             }
         }
-        viewModelScope.launch { loadFirstPage() }
+        viewModelScope.launch { loadLogsPage(state.value.currentLogsPage) }
         viewModelScope.launch {
             observeNotificationHistoryUseCase.observeRetryQueueCount()
                 .distinctUntilChanged()
-                .collect { loadFirstPage() }
+                .collect { loadLogsPage(state.value.currentLogsPage) }
         }
         viewModelScope.launch {
             _state.value = state.value.copy(
@@ -138,7 +139,7 @@ class MainViewModel @Inject constructor(
             is MainContract.Intent.Save -> onSave()
             is MainContract.Intent.ReRegister -> onReRegister(intent)
             is MainContract.Intent.ChangeSearchQuery -> onChangeSearchQuery(intent)
-            is MainContract.Intent.LoadMoreLogs -> onLoadMore()
+            is MainContract.Intent.GoToLogsPage -> onGoToLogsPage(intent)
             is MainContract.Intent.ToggleAutomation -> onToggleAutomation()
             is MainContract.Intent.ToggleSmsSource -> onToggleSmsSource(intent)
             is MainContract.Intent.ToggleBankApplicationSource -> onToggleBankApplicationSource(intent)
@@ -165,13 +166,18 @@ class MainViewModel @Inject constructor(
     }
 
     private fun onChangeSearchQuery(intent: MainContract.Intent.ChangeSearchQuery) {
-        _state.value = state.value.copy(searchQuery = intent.query)
-        viewModelScope.launch { loadFirstPage() }
+        _state.value = state.value.copy(
+            searchQuery = intent.query,
+            currentLogsPage = 1
+        )
+        viewModelScope.launch { loadLogsPage(1) }
     }
 
-    private fun onLoadMore() {
-        if (state.value.isPageLoading || !state.value.canLoadMore) return
-        viewModelScope.launch { loadNextPage() }
+    private fun onGoToLogsPage(intent: MainContract.Intent.GoToLogsPage) {
+        if (state.value.isPageLoading) return
+        val safePage: Int = intent.page.coerceIn(1, state.value.totalLogsPages)
+        if (safePage == state.value.currentLogsPage) return
+        viewModelScope.launch { loadLogsPage(safePage) }
     }
 
     private fun onToggleAutomation() {
@@ -281,51 +287,29 @@ class MainViewModel @Inject constructor(
         updateAvailableSources()
     }
 
-    private suspend fun loadFirstPage() {
+    private suspend fun loadLogsPage(requestedPage: Int) {
         _state.value = state.value.copy(isPageLoading = true)
-        val page = observeNotificationHistoryUseCase.getPage(
-            query = state.value.searchQuery.ifBlank { null },
-            limit = state.value.pageSize,
-            offset = 0
-        )
-        val current = state.value.pagedNotifications
-        if (current != page) {
-            _state.value = state.value.copy(
-                pagedNotifications = page,
-                nextOffset = page.size,
-                isPageLoading = false,
-                canLoadMore = page.size >= state.value.pageSize
-            )
+        val query: String? = state.value.searchQuery.ifBlank { null }
+        val totalCount: Int = observeNotificationHistoryUseCase.getCount(query = query)
+        val totalPages: Int = maxOf(1, (totalCount + state.value.pageSize - 1) / state.value.pageSize)
+        val safePage: Int = requestedPage.coerceIn(1, totalPages)
+        val offset: Int = (safePage - 1) * state.value.pageSize
+        val page: List<Notification> = if (totalCount == 0) {
+            emptyList()
         } else {
-            _state.value = state.value.copy(
-                isPageLoading = false,
-                canLoadMore = page.size >= state.value.pageSize,
-                nextOffset = page.size
+            observeNotificationHistoryUseCase.getPage(
+                query = query,
+                limit = state.value.pageSize,
+                offset = offset
             )
         }
-    }
-
-    private suspend fun loadNextPage() {
-        _state.value = state.value.copy(isPageLoading = true)
-        val page = observeNotificationHistoryUseCase.getPage(
-            query = state.value.searchQuery.ifBlank { null },
-            limit = state.value.pageSize,
-            offset = state.value.nextOffset
+        _state.value = state.value.copy(
+            pagedNotifications = page,
+            filteredNotificationsCount = totalCount,
+            currentLogsPage = safePage,
+            totalLogsPages = totalPages,
+            isPageLoading = false
         )
-        val combined = state.value.pagedNotifications + page
-        if (page.isNotEmpty() && combined != state.value.pagedNotifications) {
-            _state.value = state.value.copy(
-                pagedNotifications = combined,
-                nextOffset = state.value.nextOffset + page.size,
-                isPageLoading = false,
-                canLoadMore = page.size >= state.value.pageSize
-            )
-        } else {
-            _state.value = state.value.copy(
-                isPageLoading = false,
-                canLoadMore = page.size >= state.value.pageSize
-            )
-        }
     }
 
     private companion object {

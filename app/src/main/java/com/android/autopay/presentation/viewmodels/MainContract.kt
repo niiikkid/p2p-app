@@ -4,7 +4,7 @@ import com.android.autopay.domain.models.Notification
 
 object MainContract {
 
-    const val DEFAULT_PAGE_SIZE: Int = 20
+    const val DEFAULT_PAGE_SIZE: Int = 10
     const val LATEST_NOTIFICATIONS_LIMIT: Int = 5
 
     data class State(
@@ -17,10 +17,11 @@ object MainContract {
         val deviceInfo: DeviceInfo = DeviceInfo(),
         val searchQuery: String = "",
         val pagedNotifications: List<Notification> = emptyList(),
+        val filteredNotificationsCount: Int = 0,
         val isPageLoading: Boolean = false,
-        val nextOffset: Int = 0,
+        val currentLogsPage: Int = 1,
+        val totalLogsPages: Int = 1,
         val pageSize: Int = DEFAULT_PAGE_SIZE,
-        val canLoadMore: Boolean = true,
         val isAutomationEnabled: Boolean = true,
         val lastSuccessfulPingAt: Long = 0L,
         val lastPingElapsedSeconds: Long = 0L,
@@ -53,7 +54,7 @@ object MainContract {
         data object Save : Intent()
         data class ReRegister(val token: String) : Intent()
         data class ChangeSearchQuery(val query: String) : Intent()
-        data object LoadMoreLogs : Intent()
+        data class GoToLogsPage(val page: Int) : Intent()
         data object ToggleAutomation : Intent()
         data class ToggleSmsSource(val sender: String) : Intent()
         data class ToggleBankApplicationSource(val packageName: String) : Intent()

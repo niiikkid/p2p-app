@@ -38,6 +38,14 @@ interface NotificationHistoryDao {
     )
     suspend fun getPage(pattern: String?, limit: Int, offset: Int): List<HistoryNotificationDBO>
 
+    @Query(
+        "SELECT COUNT(*) FROM notification_history " +
+            "WHERE (:pattern IS NULL OR LOWER(sender) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(message) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\')"
+    )
+    suspend fun getCount(pattern: String?): Int
+
     @Query("SELECT EXISTS(SELECT 1 FROM notification_history WHERE idempotencyKey = :key LIMIT 1)")
     suspend fun existsByIdempotencyKey(key: String): Boolean
 

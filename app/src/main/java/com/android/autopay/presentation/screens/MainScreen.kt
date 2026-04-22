@@ -1,5 +1,6 @@
 package com.android.autopay.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +45,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.android.autopay.BuildConfig
 import com.android.autopay.R
 import com.android.autopay.presentation.components.DeviceInfoRowView
 import com.android.autopay.presentation.components.NotificationView
@@ -60,6 +66,16 @@ import com.android.autopay.presentation.viewmodels.MainViewModel
 
 private const val TOKEN_VISIBLE_LENGTH: Int = 4
 private const val TOKEN_MASK_PLACEHOLDER: String = "..."
+private val CardCornerRadius = 20.dp
+private val SectionSpacing = 16.dp
+
+private enum class MainScreenSection(val title: String) {
+    DASHBOARD("Панель управления"),
+    DEVICE_INFO("Информация об устройстве"),
+    TOKEN("Изменить токен"),
+    SOURCES("Источники сообщений"),
+    LOGS("Логи SMS")
+}
 
 @Composable
 fun MainScreen() {
@@ -74,14 +90,65 @@ private fun MainScreen(
     state: MainContract.State,
     onIntent: (MainContract.Intent) -> Unit
 ) {
-    var showDeviceInfo: Boolean by remember { mutableStateOf(false) }
     var showTokenDialog: Boolean by remember { mutableStateOf(false) }
     var showSourceFiltersDialog: Boolean by remember { mutableStateOf(false) }
+    var showMenu: Boolean by remember { mutableStateOf(false) }
+    var selectedSection: MainScreenSection by rememberSaveable {
+        mutableStateOf(MainScreenSection.DASHBOARD)
+    }
     Scaffold(
+        containerColor = BackgroundGrey,
         topBar = {
             TopAppBar(
-                title = { Text("P2P Bridge") },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundGrey)
+                title = {
+                    Column {
+                        Text(
+                            text = BuildConfig.APP_TITLE
+                        )
+                        if (state.isConnected) {
+                            Text(
+                                text = selectedSection.title,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (state.isConnected) {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_menu),
+                                    contentDescription = "Открыть меню",
+                                    tint = TextPrimary
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                MainScreenSection.entries.forEach { section ->
+                                    DropdownMenuItem(
+                                        text = { Text(section.title) },
+                                        onClick = {
+                                            showMenu = false
+                                            if (section == MainScreenSection.SOURCES) {
+                                                onIntent(MainContract.Intent.RefreshSourceFilters)
+                                            }
+                                            selectedSection = section
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = BackgroundGrey,
+                    actionIconContentColor = TextPrimary,
+                    titleContentColor = TextPrimary
+                )
             )
         }
     ) { paddingValues ->
@@ -120,8 +187,7 @@ private fun MainScreen(
                 ConnectedContent(
                     state = state,
                     onIntent = onIntent,
-                    showDeviceInfo = showDeviceInfo,
-                    onToggleDeviceInfo = { showDeviceInfo = !showDeviceInfo },
+                    selectedSection = selectedSection,
                     onOpenTokenDialog = { showTokenDialog = true },
                     onOpenSourceFiltersDialog = {
                         onIntent(MainContract.Intent.RefreshSourceFilters)
@@ -141,7 +207,7 @@ private fun ConnectForm(
     var showConnectForm: Boolean by remember { mutableStateOf(false) }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(top = 80.dp, start = 16.dp, end = 16.dp)
+        modifier = Modifier.padding(top = 104.dp, start = 16.dp, end = 16.dp)
     ) {
         if (!showConnectForm) {
             Button(
@@ -190,55 +256,32 @@ private fun ConnectForm(
 private fun ConnectedContent(
     state: MainContract.State,
     onIntent: (MainContract.Intent) -> Unit,
-    showDeviceInfo: Boolean,
-    onToggleDeviceInfo: () -> Unit,
+    selectedSection: MainScreenSection,
     onOpenTokenDialog: () -> Unit,
     onOpenSourceFiltersDialog: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 16.dp)
     ) {
-        PingStatusRow(state = state)
-        Spacer(modifier = Modifier.height(12.dp))
-        ConnectionStatusCard(
-            state = state,
-            showDeviceInfo = showDeviceInfo,
-            onToggleDeviceInfo = onToggleDeviceInfo
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        TokenCard(state = state, onOpenTokenDialog = onOpenTokenDialog)
-        Spacer(modifier = Modifier.height(12.dp))
-        AutomationCard(
-            state = state,
-            onToggleAutomation = { onIntent(MainContract.Intent.ToggleAutomation) },
-            onOpenSourceFiltersDialog = onOpenSourceFiltersDialog
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        LogsCard(state = state, onIntent = onIntent)
-    }
-}
-
-@Composable
-private fun PingStatusRow(state: MainContract.State) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp)
-        ) {
-            Text(
-                text = "Последний успешный пинг: ",
-                style = MaterialTheme.typography.bodySmall
+        when (selectedSection) {
+            MainScreenSection.DASHBOARD -> DashboardSection(
+                state = state,
+                onIntent = onIntent
             )
-            val seconds: Long = state.lastPingElapsedSeconds
-            Text(
-                text = if (state.lastSuccessfulPingAt == 0L) "—" else "$seconds c",
-                style = MaterialTheme.typography.bodySmall,
-                color = DarkGreen
+            MainScreenSection.DEVICE_INFO -> DeviceInfoSection(state = state)
+            MainScreenSection.TOKEN -> TokenSection(
+                state = state,
+                onOpenTokenDialog = onOpenTokenDialog
+            )
+            MainScreenSection.SOURCES -> SourcesSection(
+                state = state,
+                onOpenSourceFiltersDialog = onOpenSourceFiltersDialog
+            )
+            MainScreenSection.LOGS -> LogsSection(
+                state = state,
+                onIntent = onIntent
             )
         }
     }
@@ -247,19 +290,11 @@ private fun PingStatusRow(state: MainContract.State) {
 @Composable
 private fun ConnectionStatusCard(
     state: MainContract.State,
-    showDeviceInfo: Boolean,
-    onToggleDeviceInfo: () -> Unit
+    showDeviceInfo: Boolean
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
+    AppSectionCard {
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(20.dp)
         ) {
             val statusText: String = if (state.isConnected) {
@@ -270,31 +305,176 @@ private fun ConnectionStatusCard(
             val statusColor: Color = if (state.isConnected) DarkGreen else Color.Red
             Text(
                 text = statusText,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = statusColor
             )
-            Button(
-                onClick = onToggleDeviceInfo,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-            ) {
-                Text(if (showDeviceInfo) "Скрыть доп. информацию" else "Показать доп. информацию")
-            }
             if (showDeviceInfo) {
                 Text(
-                    text = stringResource(id = R.string.connection_info),
-                    style = MaterialTheme.typography.titleSmall
+                    text = "Сведения об устройстве",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary
                 )
-                DeviceInfoRowView(title = "Device: ", value = state.deviceInfo.deviceName)
-                DeviceInfoRowView(title = "Manufacturer: ", value = state.deviceInfo.manufacturer)
-                DeviceInfoRowView(title = "Model: ", value = state.deviceInfo.model)
-                DeviceInfoRowView(title = "Android Version: ", value = state.deviceInfo.androidVersion)
+                DeviceInfoRowView(title = "Устройство: ", value = state.deviceInfo.deviceName)
+                DeviceInfoRowView(title = "Производитель: ", value = state.deviceInfo.manufacturer)
+                DeviceInfoRowView(title = "Модель: ", value = state.deviceInfo.model)
+                DeviceInfoRowView(title = "Версия Android: ", value = state.deviceInfo.androidVersion)
                 DeviceInfoRowView(title = "API Level: ", value = state.deviceInfo.apiLevel)
-                DeviceInfoRowView(title = "Build Number: ", value = state.deviceInfo.buildNumber)
-                DeviceInfoRowView(title = "CPU Architecture: ", value = state.deviceInfo.cpuAbi)
+                DeviceInfoRowView(title = "Номер сборки: ", value = state.deviceInfo.buildNumber)
+                DeviceInfoRowView(title = "Архитектура CPU: ", value = state.deviceInfo.cpuAbi)
             }
+        }
+    }
+}
+
+@Composable
+private fun DashboardSection(
+    state: MainContract.State,
+    onIntent: (MainContract.Intent) -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        DashboardSummaryCard(state = state)
+        Spacer(modifier = Modifier.height(SectionSpacing))
+        AutomationToggleCard(
+            isAutomationEnabled = state.isAutomationEnabled,
+            onToggleAutomation = { onIntent(MainContract.Intent.ToggleAutomation) }
+        )
+    }
+}
+
+@Composable
+private fun DeviceInfoSection(state: MainContract.State) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        ConnectionStatusCard(
+            state = state,
+            showDeviceInfo = true
+        )
+    }
+}
+
+@Composable
+private fun TokenSection(
+    state: MainContract.State,
+    onOpenTokenDialog: () -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        TokenCard(state = state, onOpenTokenDialog = onOpenTokenDialog)
+    }
+}
+
+@Composable
+private fun SourcesSection(
+    state: MainContract.State,
+    onOpenSourceFiltersDialog: () -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        SourceSummaryCard(state = state)
+        Spacer(modifier = Modifier.height(SectionSpacing))
+        Button(
+            onClick = onOpenSourceFiltersDialog,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .padding(horizontal = 2.dp)
+                .fillMaxWidth()
+                .height(44.dp)
+        ) {
+            Text("Выбрать источники")
+        }
+    }
+}
+
+@Composable
+private fun LogsSection(
+    state: MainContract.State,
+    onIntent: (MainContract.Intent) -> Unit
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        LogsCard(state = state, onIntent = onIntent)
+    }
+}
+
+@Composable
+private fun DashboardSummaryCard(state: MainContract.State) {
+    AppSectionCard {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(20.dp)
+        ) {
+            DashboardMetricRow(
+                label = "Статус подключения",
+                value = if (state.isConnected) "Подключено" else "Не подключено",
+                valueColor = if (state.isConnected) DarkGreen else Color.Red
+            )
+            DashboardMetricRow(
+                label = "Последний успешный пинг",
+                value = if (state.lastSuccessfulPingAt == 0L) "—" else "${state.lastPingElapsedSeconds} c назад",
+                valueColor = TextPrimary
+            )
+            DashboardMetricRow(
+                label = "Получено сообщений",
+                value = state.notificationStats.receiveAll.toString(),
+                valueColor = TextPrimary
+            )
+            DashboardMetricRow(
+                label = "Автоматика",
+                value = if (state.isAutomationEnabled) "Включена" else "Выключена",
+                valueColor = if (state.isAutomationEnabled) DarkGreen else Color.Red
+            )
+        }
+    }
+}
+
+@Composable
+private fun AutomationToggleCard(
+    isAutomationEnabled: Boolean,
+    onToggleAutomation: () -> Unit
+) {
+    AppSectionCard {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            val automationStatusText: String = if (isAutomationEnabled) "Автоматика включена" else "Автоматика выключена"
+            val automationStatusColor: Color = if (isAutomationEnabled) DarkGreen else Color.Red
+            Text(
+                text = automationStatusText,
+                style = MaterialTheme.typography.titleMedium,
+                color = automationStatusColor
+            )
+            Button(
+                onClick = onToggleAutomation,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+            ) {
+                Text(if (isAutomationEnabled) "Отключить автоматику" else "Включить автоматику")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceSummaryCard(state: MainContract.State) {
+    AppSectionCard {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Какие сообщения обрабатывать",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary
+            )
+            Text(
+                text = if (state.selectedSmsSenders.isEmpty()) "SMS: все отправители" else "SMS: выбрано ${state.selectedSmsSenders.size}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Text(
+                text = if (state.selectedBankApplications.isEmpty()) "Банки: все приложения" else "Банки: выбрано ${state.selectedBankApplications.size}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
         }
     }
 }
@@ -304,21 +484,14 @@ private fun TokenCard(
     state: MainContract.State,
     onOpenTokenDialog: () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
+    AppSectionCard {
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Текущий токен",
-                style = MaterialTheme.typography.titleSmall,
+                text = "Текущий токен устройства",
+                style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary
             )
             Row(
@@ -365,75 +538,11 @@ private fun TokenCard(
 }
 
 @Composable
-private fun AutomationCard(
-    state: MainContract.State,
-    onToggleAutomation: () -> Unit,
-    onOpenSourceFiltersDialog: () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(16.dp)
-        ) {
-            val automationStatusText: String = if (state.isAutomationEnabled) "Автоматика включена" else "Автоматика выключена"
-            val automationStatusColor: Color = if (state.isAutomationEnabled) DarkGreen else Color.Red
-            Text(
-                text = automationStatusText,
-                style = MaterialTheme.typography.titleSmall,
-                color = automationStatusColor
-            )
-            Button(
-                onClick = onOpenSourceFiltersDialog,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Text("Выбрать источники")
-            }
-            Text(
-                text = if (state.selectedSmsSenders.isEmpty()) "SMS: все отправители" else "SMS: выбрано ${state.selectedSmsSenders.size}",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-            Text(
-                text = if (state.selectedBankApplications.isEmpty()) "Банки: все приложения" else "Банки: выбрано ${state.selectedBankApplications.size}",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-            Button(
-                onClick = onToggleAutomation,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Text(if (state.isAutomationEnabled) "Остановить автоматику" else "Запустить автоматику")
-            }
-        }
-    }
-}
-
-@Composable
 private fun LogsCard(
     state: MainContract.State,
     onIntent: (MainContract.Intent) -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-    ) {
+    AppSectionCard {
         Column(modifier = Modifier.padding(20.dp)) {
             Row {
                 Text(
@@ -444,18 +553,18 @@ private fun LogsCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Все логи",
-                style = MaterialTheme.typography.titleSmall
+                text = "Логи SMS",
+                style = MaterialTheme.typography.titleMedium
             )
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = { onIntent(MainContract.Intent.ChangeSearchQuery(it)) },
-                label = { Text("Поиск по логам") },
-                shape = RoundedCornerShape(12.dp),
+                label = { Text("Поиск по SMS-логам") },
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = BorderGrey,
                     focusedBorderColor = AccentIndigo,
-                    unfocusedContainerColor = Color.White,
+                    unfocusedContainerColor = BackgroundGrey,
                     focusedContainerColor = Color.White,
                     unfocusedTextColor = TextTertiary,
                     focusedTextColor = TextTertiary
@@ -463,29 +572,114 @@ private fun LogsCard(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Найдено сообщений: ${state.filteredNotificationsCount}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.pagedNotifications.forEach { notification ->
-                    NotificationView(notification)
+                if (state.pagedNotifications.isEmpty()) {
+                    Text(
+                        text = if (state.searchQuery.isBlank()) {
+                            "Логи пока отсутствуют"
+                        } else {
+                            "По вашему запросу ничего не найдено"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                } else {
+                    state.pagedNotifications.forEach { notification ->
+                        NotificationView(notification)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (state.canLoadMore) {
-                Button(
-                    onClick = { onIntent(MainContract.Intent.LoadMoreLogs) },
-                    enabled = !state.isPageLoading,
-                    shape = MaterialTheme.shapes.extraSmall,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                ) { Text("Загрузить ещё") }
-            } else {
+            if (state.isPageLoading) {
                 Text(
-                    text = "Это все логи",
+                    text = "Загружаем страницу...",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
+            } else if (state.filteredNotificationsCount > 0) {
+                LogsPaginationControls(
+                    state = state,
+                    onIntent = onIntent
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun LogsPaginationControls(
+    state: MainContract.State,
+    onIntent: (MainContract.Intent) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Страница ${state.currentLogsPage} из ${state.totalLogsPages}",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                onClick = { onIntent(MainContract.Intent.GoToLogsPage(state.currentLogsPage - 1)) },
+                enabled = state.currentLogsPage > 1,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Назад")
+            }
+            Button(
+                onClick = { onIntent(MainContract.Intent.GoToLogsPage(state.currentLogsPage + 1)) },
+                enabled = state.currentLogsPage < state.totalLogsPages,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Вперёд")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppSectionCard(content: @Composable () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(width = 1.dp, color = BorderGrey),
+        shape = RoundedCornerShape(CardCornerRadius),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp)
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun DashboardMetricRow(
+    label: String,
+    value: String,
+    valueColor: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = TextSecondary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = valueColor
+        )
     }
 }
 

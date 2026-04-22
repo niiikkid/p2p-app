@@ -19,6 +19,10 @@ class ObserveNotificationHistoryUseCase @Inject constructor(
 
     fun observeBankApplications(): Flow<List<String>> = notificationRepository.observeBankApplications()
 
+    suspend fun getCount(query: String?): Int {
+        return notificationRepository.getHistoryCount(query = query)
+    }
+
     suspend fun getPage(query: String?, limit: Int, offset: Int): List<Notification> {
         return notificationRepository.getHistoryPage(query = query, limit = limit, offset = offset)
     }

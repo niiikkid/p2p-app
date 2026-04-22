@@ -141,6 +141,11 @@ class NotificationRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getHistoryCount(query: String?): Int {
+        val pattern: String? = query?.let { buildLikePattern(it) }
+        return notificationHistoryDao.getCount(pattern = pattern)
+    }
+
     override suspend fun getHistoryPage(query: String?, limit: Int, offset: Int): List<Notification> {
         val pattern: String? = query?.let { buildLikePattern(it) }
         val items = notificationHistoryDao.getPage(pattern = pattern, limit = limit, offset = offset)

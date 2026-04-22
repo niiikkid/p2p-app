@@ -17,6 +17,7 @@ interface NotificationRepository {
     fun observeRetryQueueCount(): Flow<Int>
     suspend fun getDeviceSmsSenders(): List<String>
     suspend fun getInstalledApplicationPackages(): List<String>
+    suspend fun getHistoryCount(query: String?): Int
     suspend fun getHistoryPage(query: String?, limit: Int, offset: Int): List<Notification>
     suspend fun saveForRetry(notification: Notification)
     suspend fun getForRetry(): List<Notification>
