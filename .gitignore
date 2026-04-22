@@ -32,3 +32,4 @@ captures/
 # --- Firebase (usually private for public repos) ---
 **/google-services.json
 todo.md
+app/release

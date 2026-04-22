@@ -100,6 +100,7 @@ class SendNotificationUseCaseTest {
         override fun observeRetryQueueCount(): Flow<Int> = flowOf(0)
         override suspend fun getDeviceSmsSenders(): List<String> = emptyList()
         override suspend fun getInstalledApplicationPackages(): List<String> = emptyList()
+        override suspend fun getHistoryCount(query: String?): Int = 0
         override suspend fun getHistoryPage(query: String?, limit: Int, offset: Int): List<Notification> = emptyList()
 
         override suspend fun saveForRetry(notification: Notification) {
