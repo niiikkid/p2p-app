@@ -39,9 +39,19 @@ class SmsReceiver : BroadcastReceiver() {
         scope.launch {
             val settings = settingsRepository.getSettings().first()
             if (!settings.isAutomationEnabled) return@launch
+            // This branch only handles real SMS broadcasts. Push notifications from bank apps are handled by NotificationListenerService.
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(smsIntent)
+            if (messages.isEmpty()) {
+                Log.d(TAG, "SMS broadcast skipped: no message segments")
+                return@launch
+            }
             val originatingAddress: String = messages[0].originatingAddress ?: UNKNOWN_SENDER
             val fullMessage: String = messages.joinToString(separator = "") { it.messageBody }
+            Log.d(
+                TAG,
+                "Received raw SMS broadcast: sender=$originatingAddress, " +
+                    "segments=${messages.size}, messageLength=${fullMessage.length}"
+            )
             val sms = Sms(originatingAddress = originatingAddress, message = fullMessage)
             settingsRepository.addKnownSmsSender(sms.originatingAddress)
             if (!SourceFilter.isSmsAllowed(sms.originatingAddress, settings.selectedSmsSenders)) {

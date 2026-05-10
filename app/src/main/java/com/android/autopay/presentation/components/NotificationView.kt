@@ -13,13 +13,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.android.autopay.R
 import com.android.autopay.domain.models.Notification
+import com.android.autopay.domain.models.NotificationContentHiddenReason
+import com.android.autopay.domain.models.NotificationContentStatus
 import com.android.autopay.presentation.theme.BorderGrey
 import com.android.autopay.presentation.theme.DarkGreen
 import com.android.autopay.presentation.theme.StatusError
@@ -33,6 +42,8 @@ private val LogTimestampFormatter: DateTimeFormatter = DateTimeFormatter.ofPatte
 
 @Composable
 fun NotificationView(notification: Notification) {
+    val clipboardManager = LocalClipboardManager.current
+    var isDebugInfoExpanded: Boolean by remember(notification.idempotencyKey) { mutableStateOf(false) }
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -44,6 +55,8 @@ fun NotificationView(notification: Notification) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             val createdAtText: String = formatTimestamp(notification.timestamp)
+            val isContentHidden: Boolean = notification.contentStatus == NotificationContentStatus.HIDDEN_BY_ANDROID_OR_APP
+            val messageText: String = if (isContentHidden) HIDDEN_NOTIFICATION_MESSAGE else notification.message
             val statusColor: Color = when {
                 notification.sentAt > 0L -> DarkGreen
                 notification.queuedForRetry -> StatusWarning
@@ -74,7 +87,50 @@ fun NotificationView(notification: Notification) {
                     text = stringResource(R.string.message_title),
                     fontWeight = MaterialTheme.typography.titleMedium.fontWeight
                 )
-                Text(text = notification.message)
+                Text(text = messageText)
+            }
+            if (isContentHidden && notification.hiddenReason != null) {
+                Text(
+                    text = "Причина: ${notification.hiddenReason.toReadableText()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = StatusWarning
+                )
+            }
+            notification.debugInfo?.takeIf { debugInfo -> debugInfo.isNotBlank() }?.let { debugInfo ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Отладка уведомления",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextMuted
+                    )
+                    Row {
+                        TextButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(debugInfo))
+                            }
+                        ) {
+                            Text("Скопировать")
+                        }
+                        TextButton(
+                            onClick = {
+                                isDebugInfoExpanded = !isDebugInfoExpanded
+                            }
+                        ) {
+                            Text(if (isDebugInfoExpanded) "Свернуть" else "Развернуть")
+                        }
+                    }
+                }
+                if (isDebugInfoExpanded) {
+                    Text(
+                        text = debugInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Row(
@@ -111,3 +167,16 @@ private fun formatTimestamp(timestampMs: Long): String {
         .toLocalDateTime()
         .format(LogTimestampFormatter)
 }
+
+private fun NotificationContentHiddenReason.toReadableText(): String {
+    return when (this) {
+        NotificationContentHiddenReason.VISIBILITY_PRIVATE -> "уведомление помечено как приватное"
+        NotificationContentHiddenReason.VISIBILITY_SECRET -> "уведомление помечено как секретное"
+        NotificationContentHiddenReason.PUBLIC_VERSION_ONLY -> "доступна только публичная версия уведомления"
+        NotificationContentHiddenReason.EMPTY_EXTRAS -> "в extras нет текста уведомления"
+        NotificationContentHiddenReason.UNKNOWN -> "реальный текст не найден в Notification API"
+    }
+}
+
+private const val HIDDEN_NOTIFICATION_MESSAGE: String =
+    "Содержимое уведомления скрыто Android или приложением банка. Оригинальный текст не был передан системе уведомлений."

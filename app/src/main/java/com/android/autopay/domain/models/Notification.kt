@@ -6,6 +6,9 @@ data class Notification(
     val timestamp: Long,
     val type: NotificationType,
     val idempotencyKey: String,
+    val contentStatus: NotificationContentStatus = NotificationContentStatus.VISIBLE,
+    val hiddenReason: NotificationContentHiddenReason? = null,
+    val debugInfo: String? = null,
     val sentAt: Long = 0L,
     val queuedForRetry: Boolean = false,
 )

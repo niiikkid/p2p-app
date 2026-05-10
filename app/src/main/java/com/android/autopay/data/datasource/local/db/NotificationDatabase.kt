@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.android.autopay.data.datasource.local.entities.HistoryNotificationDBO
 import com.android.autopay.data.datasource.local.entities.UnsentNotificationDBO
 
-@Database(entities = [UnsentNotificationDBO::class, HistoryNotificationDBO::class], version = 3)
+@Database(entities = [UnsentNotificationDBO::class, HistoryNotificationDBO::class], version = 5)
 abstract class NotificationDatabase : RoomDatabase() {
     abstract fun unsentNotificationDao(): UnsentNotificationDao
     abstract fun notificationHistoryDao(): NotificationHistoryDao

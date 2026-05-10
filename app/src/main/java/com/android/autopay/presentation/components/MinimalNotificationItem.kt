@@ -12,9 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.android.autopay.domain.models.Notification
+import com.android.autopay.domain.models.NotificationContentStatus
 
 @Composable
 fun MinimalNotificationItem(notification: Notification) {
+    val messageText: String = if (notification.contentStatus == NotificationContentStatus.HIDDEN_BY_ANDROID_OR_APP) {
+        HIDDEN_NOTIFICATION_MESSAGE
+    } else {
+        notification.message
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row {
             Text(
@@ -29,8 +35,11 @@ fun MinimalNotificationItem(notification: Notification) {
             )
         }
         Text(
-            text = notification.message,
+            text = messageText,
             style = MaterialTheme.typography.bodySmall
         )
     }
 }
+
+private const val HIDDEN_NOTIFICATION_MESSAGE: String =
+    "Содержимое уведомления скрыто Android или приложением банка. Оригинальный текст не был передан системе уведомлений."

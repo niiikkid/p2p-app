@@ -33,7 +33,10 @@ interface NotificationHistoryDao {
         "SELECT * FROM notification_history " +
             "WHERE (:pattern IS NULL OR LOWER(sender) LIKE LOWER(:pattern) ESCAPE '\\' " +
             "OR LOWER(message) LIKE LOWER(:pattern) ESCAPE '\\' " +
-            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\') " +
+            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(contentStatus) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(hiddenReason) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(debugInfo) LIKE LOWER(:pattern) ESCAPE '\\') " +
             "ORDER BY timestamp DESC LIMIT :limit OFFSET :offset"
     )
     suspend fun getPage(pattern: String?, limit: Int, offset: Int): List<HistoryNotificationDBO>
@@ -42,7 +45,10 @@ interface NotificationHistoryDao {
         "SELECT COUNT(*) FROM notification_history " +
             "WHERE (:pattern IS NULL OR LOWER(sender) LIKE LOWER(:pattern) ESCAPE '\\' " +
             "OR LOWER(message) LIKE LOWER(:pattern) ESCAPE '\\' " +
-            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\')"
+            "OR LOWER(type) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(contentStatus) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(hiddenReason) LIKE LOWER(:pattern) ESCAPE '\\' " +
+            "OR LOWER(debugInfo) LIKE LOWER(:pattern) ESCAPE '\\')"
     )
     suspend fun getCount(pattern: String?): Int
 

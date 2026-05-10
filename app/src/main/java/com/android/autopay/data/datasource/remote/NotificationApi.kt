@@ -58,6 +58,8 @@ class NotificationApi @Inject constructor(
             put("message", notification.message)
             put("timestamp", notification.timestamp)
             put("type", notification.type.wireName)
+            put("content_status", notification.contentStatus.wireName)
+            notification.hiddenReason?.let { reason -> put("reason", reason.wireName) }
         }
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request: Request = Request.Builder()
