@@ -1,7 +1,9 @@
 package com.android.autopay.data.datasource.remote
 
 import com.android.autopay.domain.models.Notification
+import com.android.autopay.domain.models.NotificationType
 import com.android.autopay.utils.AppDispatchers
+import com.android.autopay.utils.PUSH_MESSAGE_SEPARATOR
 import kotlinx.coroutines.withContext
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
@@ -55,7 +57,7 @@ class NotificationApi @Inject constructor(
             .build()
         val json: JSONObject = JSONObject().apply {
             put("sender", notification.sender)
-            put("message", notification.message)
+            put("message", buildApiMessage(notification))
             put("timestamp", notification.timestamp)
             put("type", notification.type.wireName)
             put("content_status", notification.contentStatus.wireName)
@@ -109,6 +111,14 @@ class NotificationApi @Inject constructor(
             Exception(message)
         } catch (e: Exception) {
             Exception(code.toString())
+        }
+    }
+
+    private fun buildApiMessage(notification: Notification): String {
+        return if (notification.type == NotificationType.SMS && notification.sender.isNotBlank()) {
+            notification.sender + PUSH_MESSAGE_SEPARATOR + notification.message
+        } else {
+            notification.message
         }
     }
 }
