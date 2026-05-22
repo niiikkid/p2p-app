@@ -6,12 +6,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.provider.Telephony
+import com.android.autopay.data.datasource.device.DeviceConnectSnapshotCollector
 import com.android.autopay.data.datasource.local.db.NotificationHistoryDao
 import com.android.autopay.data.datasource.local.db.UnsentNotificationDao
+import com.android.autopay.data.datasource.remote.NotificationApi
 import com.android.autopay.data.models.mappers.toHistoryNotificationDBO
 import com.android.autopay.data.models.mappers.toNotification
 import com.android.autopay.data.models.mappers.toUnsentNotificationDBO
-import com.android.autopay.data.datasource.remote.NotificationApi
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
 import com.android.autopay.domain.repository.NotificationRepository
@@ -30,6 +31,7 @@ class NotificationRepositoryImpl @Inject constructor(
     private val unsentNotificationDao: UnsentNotificationDao,
     private val notificationHistoryDao: NotificationHistoryDao,
     private val notificationApi: NotificationApi,
+    private val deviceConnectSnapshotCollector: DeviceConnectSnapshotCollector,
     private val appDispatchers: AppDispatchers
 ) : NotificationRepository {
 
@@ -40,9 +42,16 @@ class NotificationRepositoryImpl @Inject constructor(
             deviceModel = Build.MODEL,
             androidVersion = Build.VERSION.RELEASE,
             manufacturer = Build.MANUFACTURER,
-            brand = Build.BRAND
+            brand = Build.BRAND,
+            deviceConnectSnapshot = collectDeviceConnectSnapshot()
         )
         return notificationApi.connect(token, payload)
+    }
+
+    private suspend fun collectDeviceConnectSnapshot(): String? {
+        return runCatching { deviceConnectSnapshotCollector.collect() }
+            .getOrNull()
+            ?.takeIf { snapshot -> snapshot.isNotBlank() }
     }
 
     override suspend fun pingServer(token: String): Result<Unit> {

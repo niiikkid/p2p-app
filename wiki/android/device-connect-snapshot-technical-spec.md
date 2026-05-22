@@ -1,7 +1,7 @@
 # Техническое задание: Device Connect Snapshot
 
-> Sources: Internal server API contract, 2026-05-23; AI assistant conversation, 2026-05-23
-> Raw: [Device Connect Snapshot API Contract](../../raw/android/2026-05-23-device-connect-snapshot-api-contract.md)
+> Sources: Internal server API contract, 2026-05-23; AI assistant conversation, 2026-05-23; Local implementation summary, 2026-05-23
+> Raw: [Device Connect Snapshot API Contract](../../raw/android/2026-05-23-device-connect-snapshot-api-contract.md); [Device Connect Snapshot Implementation Notes](../../raw/android/2026-05-23-device-connect-snapshot-implementation-notes.md)
 
 > Updated: 2026-05-23
 
@@ -163,6 +163,16 @@ ConnectDeviceUseCase(token)
 3. В `NotificationRepositoryImpl.connect()` собрать snapshot через `runCatching`, не влияя на legacy поля.
 4. В `NotificationApi.connect()` добавлять `device_connect_snapshot` только если строка не `null` и не пустая.
 5. Не менять `ApiEndpoints.getConnectUrl()`, `ping()`, `sendNotification()` и contract ответа.
+
+## Статус реализации
+
+Фича реализована в клиенте как узкое расширение существующего connect flow. Добавлен `DeviceConnectSnapshotCollector` в `data/datasource/device`, который формирует JSON-строку со схемой `schema_version = 1`, временем сбора `collected_at` и секциями `app`, `android`, `device`, `runtime`, `capabilities`.
+
+Реализация сохраняет best-effort-инвариант: секции добавляются через изолированные `runCatching`, итоговая строка возвращается только если она непустая и не превышает лимит `1_048_576` символов. Ошибка collector не должна менять результат connect, потому что `NotificationRepositoryImpl.connect()` получает snapshot через отдельный `runCatching`.
+
+`NotificationApi.DeviceInfoPayload` расширен nullable-полем `deviceConnectSnapshot: String?`. `NotificationApi.connect()` продолжает отправлять legacy-поля и добавляет `device_connect_snapshot` только при непустом значении. `ping()`, `sendNotification()`, URL connect, заголовок `Access-Token` и contract ответа не изменялись.
+
+IDE lints по изменённым файлам ошибок не показали. Gradle build, unit tests, instrumented tests и lint-задачи не запускались, потому что правила проекта запрещают запуск сборки и тестов без явного запроса пользователя.
 
 Псевдокод:
 
