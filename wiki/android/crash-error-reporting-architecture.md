@@ -113,3 +113,7 @@ Application.onCreate()
 8. Crashlytics или Sentry как резервный канал.
 
 **Ключевая мысль**: в момент падения — только быстрая запись; HTTP и тяжёлая логика — после рестарта или в Worker.
+
+## See Also
+
+- [Техническое задание: Crash/Error Reporting API](crash-reporting-api-technical-spec.md)
