@@ -8,6 +8,7 @@ interface NotificationRepository {
     suspend fun pingServer(token: String): Result<Unit>
     suspend fun sendToServer(notification: Notification): Result<Unit>
     suspend fun saveToHistory(notification: Notification)
+    suspend fun wasSentSuccessfully(idempotencyKey: String): Boolean
     suspend fun markSentSuccess(notification: Notification, sentAtTimestamp: Long = System.currentTimeMillis())
     fun observeHistory(): Flow<List<Notification>>
     fun observeLatest(limit: Int): Flow<List<Notification>>

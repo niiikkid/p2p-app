@@ -2,6 +2,7 @@ package com.android.autopay.domain.usecases
 
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.repository.NotificationRepository
+import com.android.autopay.utils.NotificationFreshness
 import java.io.IOException
 import javax.inject.Inject
 
@@ -10,6 +11,12 @@ class SendNotificationUseCase @Inject constructor(
 ) {
 
     suspend operator fun invoke(notification: Notification): Result<Unit> {
+        if (notificationRepository.wasSentSuccessfully(notification.idempotencyKey)) {
+            return Result.success(Unit)
+        }
+        if (NotificationFreshness.isExpired(notification.timestamp)) {
+            return Result.success(Unit)
+        }
         notificationRepository.saveToHistory(notification)
         return try {
             val sendResult: Result<Unit> = notificationRepository.sendToServer(notification)
@@ -17,12 +24,17 @@ class SendNotificationUseCase @Inject constructor(
                 notificationRepository.markSentSuccess(notification)
                 Result.success(Unit)
             } else {
-                notificationRepository.saveForRetry(notification)
+                enqueueForRetryIfFresh(notification)
                 sendResult
             }
         } catch (e: IOException) {
-            notificationRepository.saveForRetry(notification)
+            enqueueForRetryIfFresh(notification)
             Result.failure(e)
         }
+    }
+
+    private suspend fun enqueueForRetryIfFresh(notification: Notification) {
+        if (NotificationFreshness.isExpired(notification.timestamp)) return
+        notificationRepository.saveForRetry(notification)
     }
 }

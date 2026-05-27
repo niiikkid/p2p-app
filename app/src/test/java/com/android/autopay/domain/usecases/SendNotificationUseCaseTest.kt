@@ -3,6 +3,7 @@ package com.android.autopay.domain.usecases
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
 import com.android.autopay.domain.repository.NotificationRepository
+import com.android.autopay.utils.NOTIFICATION_MAX_AGE_MS
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -42,6 +43,34 @@ class SendNotificationUseCaseTest {
     }
 
     @Test
+    fun `invoke skips send when already sent successfully`() = runBlocking {
+        val inputNotification: Notification = buildNotification()
+        val mockRepository = FakeNotificationRepository(
+            sendResult = Result.success(Unit),
+            alreadySent = true,
+        )
+        val useCase = SendNotificationUseCase(notificationRepository = mockRepository)
+        val actualResult: Result<Unit> = useCase(inputNotification)
+        assertTrue(actualResult.isSuccess)
+        assertTrue(mockRepository.savedToHistory.isEmpty())
+        assertTrue(mockRepository.sentToServer.isEmpty())
+        assertTrue(mockRepository.savedForRetry.isEmpty())
+    }
+
+    @Test
+    fun `invoke skips send and retry when notification is expired`() = runBlocking {
+        val inputNotification: Notification = buildNotification(
+            timestamp = System.currentTimeMillis() - NOTIFICATION_MAX_AGE_MS - 1L
+        )
+        val mockRepository = FakeNotificationRepository(sendResult = Result.failure(IllegalStateException("server error")))
+        val useCase = SendNotificationUseCase(notificationRepository = mockRepository)
+        val actualResult: Result<Unit> = useCase(inputNotification)
+        assertTrue(actualResult.isSuccess)
+        assertTrue(mockRepository.sentToServer.isEmpty())
+        assertTrue(mockRepository.savedForRetry.isEmpty())
+    }
+
+    @Test
     fun `invoke enqueues for retry when IO exception is thrown`() = runBlocking {
         val inputNotification: Notification = buildNotification()
         val expectedError = IOException("offline")
@@ -55,11 +84,11 @@ class SendNotificationUseCaseTest {
         assertEquals(listOf(inputNotification), mockRepository.savedForRetry)
     }
 
-    private fun buildNotification(): Notification {
+    private fun buildNotification(timestamp: Long = System.currentTimeMillis()): Notification {
         return Notification(
             sender = "sender",
             message = "message",
-            timestamp = 1_000L,
+            timestamp = timestamp,
             type = NotificationType.SMS,
             idempotencyKey = "key"
         )
@@ -68,6 +97,7 @@ class SendNotificationUseCaseTest {
     private class FakeNotificationRepository(
         private val sendResult: Result<Unit> = Result.success(Unit),
         private val sendError: IOException? = null,
+        private val alreadySent: Boolean = false,
     ) : NotificationRepository {
 
         val savedToHistory: MutableList<Notification> = mutableListOf()
@@ -87,6 +117,8 @@ class SendNotificationUseCaseTest {
         override suspend fun saveToHistory(notification: Notification) {
             savedToHistory.add(notification)
         }
+
+        override suspend fun wasSentSuccessfully(idempotencyKey: String): Boolean = alreadySent
 
         override suspend fun markSentSuccess(notification: Notification, sentAtTimestamp: Long) {
             markedSentSuccess.add(notification)

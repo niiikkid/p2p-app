@@ -71,6 +71,10 @@ class NotificationRepositoryImpl @Inject constructor(
         notificationHistoryDao.upsert(notification.toHistoryNotificationDBO())
     }
 
+    override suspend fun wasSentSuccessfully(idempotencyKey: String): Boolean {
+        return notificationHistoryDao.wasSentSuccessfully(idempotencyKey)
+    }
+
     override suspend fun markSentSuccess(notification: Notification, sentAtTimestamp: Long) {
         notificationHistoryDao.updateSentAtByIdempotencyKey(notification.idempotencyKey, sentAtTimestamp)
     }

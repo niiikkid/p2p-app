@@ -25,6 +25,7 @@ import com.android.autopay.domain.usecases.PingServerUseCase
 import com.android.autopay.domain.usecases.RetryPendingNotificationsUseCase
 import com.android.autopay.domain.usecases.SendNotificationUseCase
 import com.android.autopay.utils.AppDispatchers
+import com.android.autopay.utils.NotificationFreshness
 import com.android.autopay.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
 import com.android.autopay.utils.FOREGROUND_NOTIFICATION_ID
 import com.android.autopay.utils.PING_INTERVAL_SECONDS
@@ -149,6 +150,14 @@ class PushNotificationHandlerService : NotificationListenerService() {
             return
         }
         if (sbn.isGroupSummary()) return
+        if (NotificationFreshness.isExpired(sbn.postTime)) {
+            Log.d(
+                TAG,
+                "Push dropped as stale: package=$packageName, postTime=${sbn.postTime}, " +
+                    "ageMs=${System.currentTimeMillis() - sbn.postTime}"
+            )
+            return
+        }
         val parsedNotification: ParsedPushNotification = parsePushNotification(sbn)
         val combinedMessage: String = parsedNotification.combinedMessage
         val push = Push(packageName = packageName, message = combinedMessage)
@@ -160,7 +169,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         val notification = DomainNotification(
             sender = push.packageName,
             message = push.message,
-            timestamp = System.currentTimeMillis(),
+            timestamp = sbn.postTime,
             type = NotificationType.PUSH,
             idempotencyKey = stableKey,
             contentStatus = parsedNotification.contentStatus,

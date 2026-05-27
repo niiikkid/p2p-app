@@ -4,6 +4,7 @@ import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
 import com.android.autopay.domain.repository.NotificationRepository
 import com.android.autopay.domain.repository.SettingsRepository
+import com.android.autopay.utils.NotificationFreshness
 import com.android.autopay.utils.SourceFilter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -35,6 +36,14 @@ class RetryPendingNotificationsUseCase @Inject constructor(
         selectedSmsSenders: Set<String>,
         selectedBankApplications: Set<String>,
     ): Boolean {
+        if (NotificationFreshness.isExpired(notification.timestamp)) {
+            notificationRepository.deleteForRetry(notification)
+            return true
+        }
+        if (notificationRepository.wasSentSuccessfully(notification.idempotencyKey)) {
+            notificationRepository.deleteForRetry(notification)
+            return true
+        }
         val isSmsFilteredOut: Boolean = notification.type == NotificationType.SMS &&
             !SourceFilter.isSmsAllowed(notification.sender, selectedSmsSenders)
         val isPushFilteredOut: Boolean = notification.type == NotificationType.PUSH &&
