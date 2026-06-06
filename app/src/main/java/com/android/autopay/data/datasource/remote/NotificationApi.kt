@@ -24,8 +24,7 @@ class NotificationApi @Inject constructor(
         val deviceModel: String,
         val androidVersion: String,
         val manufacturer: String,
-        val brand: String,
-        val deviceConnectSnapshot: String?
+        val brand: String
     )
 
     suspend fun connect(token: String, payload: DeviceInfoPayload): Result<Unit> {
@@ -40,9 +39,6 @@ class NotificationApi @Inject constructor(
             put("android_version", payload.androidVersion)
             put("manufacturer", payload.manufacturer)
             put("brand", payload.brand)
-            payload.deviceConnectSnapshot
-                ?.takeIf { snapshot -> snapshot.isNotBlank() }
-                ?.let { snapshot -> put("device_connect_snapshot", snapshot) }
         }
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
         val request: Request = Request.Builder()

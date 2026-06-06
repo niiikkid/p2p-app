@@ -1,7 +1,6 @@
 package com.android.autopay.data.datasource.local.db
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -14,8 +13,8 @@ interface UnsentNotificationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(notification: UnsentNotificationDBO)
 
-    @Delete
-    suspend fun delete(notification: UnsentNotificationDBO)
+    @Query("DELETE FROM unsent_notifications WHERE idempotencyKey = :key")
+    suspend fun deleteByIdempotencyKey(key: String)
 
     @Query("SELECT * FROM unsent_notifications")
     suspend fun getAll(): List<UnsentNotificationDBO>

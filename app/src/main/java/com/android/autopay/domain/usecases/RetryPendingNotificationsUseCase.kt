@@ -9,12 +9,12 @@ import com.android.autopay.utils.SourceFilter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
-import java.io.IOException
 import javax.inject.Inject
 
 class RetryPendingNotificationsUseCase @Inject constructor(
     private val notificationRepository: NotificationRepository,
     private val settingsRepository: SettingsRepository,
+    private val sendNotificationUseCase: SendNotificationUseCase,
 ) {
 
     suspend operator fun invoke(): Result = coroutineScope {
@@ -52,18 +52,8 @@ class RetryPendingNotificationsUseCase @Inject constructor(
             notificationRepository.deleteForRetry(notification)
             return true
         }
-        return try {
-            val sendResult = notificationRepository.sendToServer(notification)
-            if (sendResult.isSuccess) {
-                notificationRepository.deleteForRetry(notification)
-                notificationRepository.markSentSuccess(notification)
-                true
-            } else {
-                false
-            }
-        } catch (_: IOException) {
-            false
-        }
+        val sendResult: kotlin.Result<Unit> = sendNotificationUseCase(notification)
+        return sendResult.isSuccess
     }
 
     sealed class Result {

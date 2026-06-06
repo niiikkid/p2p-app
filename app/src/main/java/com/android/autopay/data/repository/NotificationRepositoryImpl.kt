@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.provider.Telephony
-import com.android.autopay.data.datasource.device.DeviceConnectSnapshotCollector
 import com.android.autopay.data.datasource.local.db.NotificationHistoryDao
 import com.android.autopay.data.datasource.local.db.UnsentNotificationDao
 import com.android.autopay.data.datasource.remote.NotificationApi
@@ -31,7 +30,6 @@ class NotificationRepositoryImpl @Inject constructor(
     private val unsentNotificationDao: UnsentNotificationDao,
     private val notificationHistoryDao: NotificationHistoryDao,
     private val notificationApi: NotificationApi,
-    private val deviceConnectSnapshotCollector: DeviceConnectSnapshotCollector,
     private val appDispatchers: AppDispatchers
 ) : NotificationRepository {
 
@@ -42,16 +40,9 @@ class NotificationRepositoryImpl @Inject constructor(
             deviceModel = Build.MODEL,
             androidVersion = Build.VERSION.RELEASE,
             manufacturer = Build.MANUFACTURER,
-            brand = Build.BRAND,
-            deviceConnectSnapshot = collectDeviceConnectSnapshot()
+            brand = Build.BRAND
         )
         return notificationApi.connect(token, payload)
-    }
-
-    private suspend fun collectDeviceConnectSnapshot(): String? {
-        return runCatching { deviceConnectSnapshotCollector.collect() }
-            .getOrNull()
-            ?.takeIf { snapshot -> snapshot.isNotBlank() }
     }
 
     override suspend fun pingServer(token: String): Result<Unit> {
@@ -76,7 +67,12 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun markSentSuccess(notification: Notification, sentAtTimestamp: Long) {
-        notificationHistoryDao.updateSentAtByIdempotencyKey(notification.idempotencyKey, sentAtTimestamp)
+        if (!notificationHistoryDao.existsByIdempotencyKey(notification.idempotencyKey)) {
+            notificationHistoryDao.upsert(notification.copy(sentAt = sentAtTimestamp).toHistoryNotificationDBO())
+        } else {
+            notificationHistoryDao.updateSentAtByIdempotencyKey(notification.idempotencyKey, sentAtTimestamp)
+        }
+        unsentNotificationDao.deleteByIdempotencyKey(notification.idempotencyKey)
     }
 
     override fun observeHistory(): Flow<List<Notification>> {
@@ -178,6 +174,7 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveForRetry(notification: Notification) {
+        if (wasSentSuccessfully(notification.idempotencyKey)) return
         if (unsentNotificationDao.existsByIdempotencyKey(notification.idempotencyKey)) return
         unsentNotificationDao.upsert(notification.toUnsentNotificationDBO())
     }
@@ -187,6 +184,6 @@ class NotificationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteForRetry(notification: Notification) {
-        unsentNotificationDao.delete(notification.toUnsentNotificationDBO())
+        unsentNotificationDao.deleteByIdempotencyKey(notification.idempotencyKey)
     }
 }
