@@ -105,7 +105,7 @@ private fun MainScreen(
                         Text(
                             text = BuildConfig.APP_TITLE
                         )
-                        if (state.isConnected) {
+                        if (state.isConnected && state.isAppVersionChecked) {
                             Text(
                                 text = selectedSection.title,
                                 style = MaterialTheme.typography.bodySmall,
@@ -115,7 +115,7 @@ private fun MainScreen(
                     }
                 },
                 actions = {
-                    if (state.isConnected) {
+                    if (state.isConnected && state.isAppVersionChecked) {
                         Box {
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(
@@ -181,21 +181,42 @@ private fun MainScreen(
                     onDismiss = { showSourceFiltersDialog = false }
                 )
             }
-            if (!state.isConnected) {
-                ConnectForm(state = state, onIntent = onIntent)
-            } else {
-                ConnectedContent(
-                    state = state,
-                    onIntent = onIntent,
-                    selectedSection = selectedSection,
-                    onOpenTokenDialog = { showTokenDialog = true },
-                    onOpenSourceFiltersDialog = {
-                        onIntent(MainContract.Intent.RefreshSourceFilters)
-                        showSourceFiltersDialog = true
-                    }
-                )
+            when {
+                !state.isConnected -> ConnectForm(state = state, onIntent = onIntent)
+                !state.isAppVersionChecked -> LoadingScreen()
+                else -> {
+                    ConnectedContent(
+                        state = state,
+                        onIntent = onIntent,
+                        selectedSection = selectedSection,
+                        onOpenTokenDialog = { showTokenDialog = true },
+                        onOpenSourceFiltersDialog = {
+                            onIntent(MainContract.Intent.RefreshSourceFilters)
+                            showSourceFiltersDialog = true
+                        }
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        CircularProgressIndicator()
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Проверяем версию приложения...",
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextPrimary
+        )
     }
 }
 

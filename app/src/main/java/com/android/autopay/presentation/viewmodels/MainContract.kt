@@ -24,6 +24,7 @@ object MainContract {
         val pageSize: Int = DEFAULT_PAGE_SIZE,
         val isAutomationEnabled: Boolean = true,
         val isAppVersionSupported: Boolean = true,
+        val isAppVersionChecked: Boolean = false,
         val lastSuccessfulPingAt: Long = 0L,
         val lastPingElapsedSeconds: Long = 0L,
         val selectedSmsSenders: Set<String> = emptySet(),

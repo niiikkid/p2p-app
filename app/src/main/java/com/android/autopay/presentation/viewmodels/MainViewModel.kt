@@ -8,6 +8,7 @@ import com.android.autopay.domain.repository.NotificationRepository
 import com.android.autopay.domain.repository.SettingsRepository
 import com.android.autopay.domain.usecases.ConnectDeviceUseCase
 import com.android.autopay.domain.usecases.ObserveNotificationHistoryUseCase
+import com.android.autopay.domain.usecases.PingServerUseCase
 import com.android.autopay.domain.usecases.ToggleAutomationUseCase
 import com.android.autopay.utils.SourceFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +29,7 @@ class MainViewModel @Inject constructor(
     private val connectDeviceUseCase: ConnectDeviceUseCase,
     private val observeNotificationHistoryUseCase: ObserveNotificationHistoryUseCase,
     private val toggleAutomationUseCase: ToggleAutomationUseCase,
+    private val pingServerUseCase: PingServerUseCase,
 ) : ViewModel() {
 
     private val _state: MutableStateFlow<MainContract.State> = MutableStateFlow(MainContract.State())
@@ -45,12 +47,16 @@ class MainViewModel @Inject constructor(
                 isConnected = settingsData.isConnected,
                 isAutomationEnabled = settingsData.isAutomationEnabled,
                 isAppVersionSupported = settingsData.isAppVersionSupported,
+                isAppVersionChecked = settingsData.isAppVersionChecked,
                 lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt,
                 selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
                 selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
                 knownSmsSenders = SourceFilter.normalizeSources(settingsData.knownSmsSenders),
                 knownBankApplications = SourceFilter.normalizeSources(settingsData.knownBankApplications)
             )
+            if (settingsData.isConnected && !settingsData.isAppVersionChecked) {
+                pingServerUseCase()
+            }
             updateAvailableSources()
             updateIsSavePossible()
         }
@@ -61,6 +67,7 @@ class MainViewModel @Inject constructor(
                     isConnected = settingsData.isConnected,
                     isAutomationEnabled = settingsData.isAutomationEnabled,
                     isAppVersionSupported = settingsData.isAppVersionSupported,
+                    isAppVersionChecked = settingsData.isAppVersionChecked,
                     lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt,
                     selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
                     selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
@@ -187,7 +194,7 @@ class MainViewModel @Inject constructor(
     }
 
     private fun onToggleAutomation() {
-        if (!state.value.isAppVersionSupported) return
+        if (!state.value.isAppVersionSupported || !state.value.isAppVersionChecked) return
         viewModelScope.launch {
             val targetState: Boolean = toggleAutomationUseCase()
             _state.value = state.value.copy(isAutomationEnabled = targetState)
@@ -260,7 +267,13 @@ class MainViewModel @Inject constructor(
         _state.value = state.value.copy(token = token, isConnecting = true, errorMessage = null)
         val connectResult: Result<Unit> = connectDeviceUseCase(token)
         if (connectResult.isSuccess) {
-            _state.value = state.value.copy(isConnected = true, isConnecting = false)
+            _state.value = state.value.copy(
+                isConnected = true,
+                isConnecting = false,
+                isAppVersionSupported = true,
+                isAppVersionChecked = false
+            )
+            pingServerUseCase()
         } else {
             _state.value = state.value.copy(
                 isConnected = false,

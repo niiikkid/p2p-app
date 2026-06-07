@@ -28,6 +28,7 @@ class DataStoreManager @Inject constructor(
             settings[booleanPreferencesKey(IS_CONNECTED_KEY)] = settingsData.isConnected
             settings[booleanPreferencesKey(IS_AUTOMATION_ENABLED_KEY)] = settingsData.isAutomationEnabled
             settings[booleanPreferencesKey(IS_APP_VERSION_SUPPORTED_KEY)] = settingsData.isAppVersionSupported
+            settings[booleanPreferencesKey(IS_APP_VERSION_CHECKED_KEY)] = settingsData.isAppVersionChecked
             settings[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] = settingsData.lastSuccessfulPingAt
             settings[stringSetPreferencesKey(SELECTED_SMS_SENDERS_KEY)] = settingsData.selectedSmsSenders
             settings[stringSetPreferencesKey(SELECTED_BANK_APPLICATIONS_KEY)] = settingsData.selectedBankApplications
@@ -42,6 +43,7 @@ class DataStoreManager @Inject constructor(
             val savedIsConnected: Boolean = preferences[booleanPreferencesKey(IS_CONNECTED_KEY)] ?: false
             val savedIsAutomationEnabled: Boolean = preferences[booleanPreferencesKey(IS_AUTOMATION_ENABLED_KEY)] ?: true
             val savedIsAppVersionSupported: Boolean = preferences[booleanPreferencesKey(IS_APP_VERSION_SUPPORTED_KEY)] ?: true
+            val savedIsAppVersionChecked: Boolean = preferences[booleanPreferencesKey(IS_APP_VERSION_CHECKED_KEY)] ?: false
             val savedLastSuccessfulPingAt: Long = preferences[longPreferencesKey(LAST_SUCCESSFUL_PING_AT_KEY)] ?: 0L
             val savedSelectedSmsSenders: Set<String> = preferences[stringSetPreferencesKey(SELECTED_SMS_SENDERS_KEY)] ?: emptySet()
             val savedSelectedBankApplications: Set<String> = preferences[stringSetPreferencesKey(SELECTED_BANK_APPLICATIONS_KEY)] ?: emptySet()
@@ -52,6 +54,7 @@ class DataStoreManager @Inject constructor(
                 isConnected = savedIsConnected,
                 isAutomationEnabled = savedIsAutomationEnabled,
                 isAppVersionSupported = savedIsAppVersionSupported,
+                isAppVersionChecked = savedIsAppVersionChecked,
                 lastSuccessfulPingAt = savedLastSuccessfulPingAt,
                 selectedSmsSenders = savedSelectedSmsSenders,
                 selectedBankApplications = savedSelectedBankApplications,
@@ -76,6 +79,12 @@ class DataStoreManager @Inject constructor(
     suspend fun saveAppVersionSupported(isSupported: Boolean) {
         context.dataStore.edit { settings ->
             settings[booleanPreferencesKey(IS_APP_VERSION_SUPPORTED_KEY)] = isSupported
+        }
+    }
+
+    suspend fun saveAppVersionChecked(isChecked: Boolean) {
+        context.dataStore.edit { settings ->
+            settings[booleanPreferencesKey(IS_APP_VERSION_CHECKED_KEY)] = isChecked
         }
     }
 
@@ -115,6 +124,7 @@ class DataStoreManager @Inject constructor(
         private const val IS_CONNECTED_KEY: String = "is_connected"
         private const val IS_AUTOMATION_ENABLED_KEY: String = "is_automation_enabled"
         private const val IS_APP_VERSION_SUPPORTED_KEY: String = "is_app_version_supported"
+        private const val IS_APP_VERSION_CHECKED_KEY: String = "is_app_version_checked"
         private const val LAST_SUCCESSFUL_PING_AT_KEY: String = "last_successful_ping_at"
         private const val SELECTED_SMS_SENDERS_KEY: String = "selected_sms_senders"
         private const val SELECTED_BANK_APPLICATIONS_KEY: String = "selected_bank_applications"

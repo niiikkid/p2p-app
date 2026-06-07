@@ -21,6 +21,7 @@ class PingServerUseCase @Inject constructor(
         if (pingResult.isSuccess) {
             val serverAppVersion: String = pingResult.getOrThrow().androidAppVersion
             val isAppVersionSupported: Boolean = serverAppVersion == BuildConfig.APP_VERSION.trim()
+            settingsRepository.saveAppVersionChecked(true)
             settingsRepository.saveAppVersionSupported(isAppVersionSupported)
             if (!isAppVersionSupported) {
                 settingsRepository.saveAutomationEnabled(false)

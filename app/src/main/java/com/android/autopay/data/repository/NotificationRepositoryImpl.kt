@@ -52,7 +52,7 @@ class NotificationRepositoryImpl @Inject constructor(
 
     override suspend fun sendToServer(notification: Notification): Result<Unit> {
         val settings = settingsRepository.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank() || !settings.isAppVersionSupported) {
+        if (!settings.isConnected || settings.token.isBlank() || !settings.isAppVersionSupported || !settings.isAppVersionChecked) {
             return Result.failure(IllegalStateException("App is not connected"))
         }
         return notificationApi.sendNotification(settings.token, notification)

@@ -38,7 +38,7 @@ class SmsReceiver : BroadcastReceiver() {
         val smsIntent: Intent = intent
         scope.launch {
             val settings = settingsRepository.getSettings().first()
-            if (!settings.isAutomationEnabled || !settings.isAppVersionSupported) return@launch
+            if (!settings.isAutomationEnabled || !settings.isAppVersionSupported || !settings.isAppVersionChecked) return@launch
             // This branch only handles real SMS broadcasts. Push notifications from bank apps are handled by NotificationListenerService.
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(smsIntent)
             if (messages.isEmpty()) {
