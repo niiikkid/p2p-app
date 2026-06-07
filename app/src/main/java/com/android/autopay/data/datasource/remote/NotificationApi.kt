@@ -1,7 +1,9 @@
 package com.android.autopay.data.datasource.remote
 
+import com.android.autopay.BuildConfig
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
+import com.android.autopay.domain.models.PingResult
 import com.android.autopay.utils.AppDispatchers
 import com.android.autopay.utils.PUSH_MESSAGE_SEPARATOR
 import kotlinx.coroutines.withContext
@@ -61,6 +63,7 @@ class NotificationApi @Inject constructor(
             put("timestamp", notification.timestamp)
             put("type", notification.type.wireName)
             put("content_status", notification.contentStatus.wireName)
+            put("android_app_version", BuildConfig.APP_VERSION)
             notification.hiddenReason?.let { reason -> put("reason", reason.wireName) }
         }
         val requestBody = json.toString().toRequestBody("application/json".toMediaType())
@@ -72,7 +75,7 @@ class NotificationApi @Inject constructor(
         return execute(request) { _, code -> Exception(code.toString()) }
     }
 
-    suspend fun ping(token: String): Result<Unit> {
+    suspend fun ping(token: String): Result<PingResult> {
         val headers: Headers = Headers.Builder()
             .add("Accept", "application/json")
             .add("Access-Token", token)
@@ -82,7 +85,7 @@ class NotificationApi @Inject constructor(
             .headers(headers)
             .get()
             .build()
-        return execute(request) { _, code -> Exception(code.toString()) }
+        return executePing(request)
     }
 
     private suspend fun execute(
@@ -111,6 +114,36 @@ class NotificationApi @Inject constructor(
             Exception(message)
         } catch (e: Exception) {
             Exception(code.toString())
+        }
+    }
+
+    private suspend fun executePing(request: Request): Result<PingResult> {
+        return withContext(appDispatchers.io) {
+            try {
+                httpClient.newCall(request).execute().use { response ->
+                    val body: String = response.body?.string().orEmpty()
+                    if (response.isSuccessful) {
+                        return@withContext parsePingResponse(body)
+                    }
+                    Result.failure(Exception(response.code.toString()))
+                }
+            } catch (e: IOException) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    private fun parsePingResponse(body: String): Result<PingResult> {
+        return try {
+            val json = JSONObject(body)
+            if (!json.optBoolean("success", false)) {
+                return Result.failure(Exception("Ping failed"))
+            }
+            val data: JSONObject = json.optJSONObject("data") ?: JSONObject()
+            val androidAppVersion: String = data.optString("android_app_version").trim()
+            Result.success(PingResult(androidAppVersion = androidAppVersion))
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

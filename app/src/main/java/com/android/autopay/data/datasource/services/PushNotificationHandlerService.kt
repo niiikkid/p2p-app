@@ -91,7 +91,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         Log.d(TAG, "Listener connected")
         scope.launch {
             val settings: SettingsData = settingsRepository.getSettings().first()
-            if (!settings.isAutomationEnabled) return@launch
+            if (!settings.isAutomationEnabled || !settings.isAppVersionSupported) return@launch
             processActiveNotifications(settings)
         }
     }
@@ -107,7 +107,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
     private fun processPostedNotification(sbn: StatusBarNotification) {
         scope.launch {
             val settings: SettingsData = settingsRepository.getSettings().first()
-            if (!settings.isAutomationEnabled) return@launch
+            if (!settings.isAutomationEnabled || !settings.isAppVersionSupported) return@launch
             val notifications: List<StatusBarNotification> = findNotificationsToHandle(sbn, getActiveNotificationsSafe())
             notifications.forEach { notification -> handleNotification(notification, settings) }
             cancelExternalNotifications(sbn)

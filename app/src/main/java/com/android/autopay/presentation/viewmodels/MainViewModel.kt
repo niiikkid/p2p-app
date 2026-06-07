@@ -44,6 +44,7 @@ class MainViewModel @Inject constructor(
                 token = settingsData.token,
                 isConnected = settingsData.isConnected,
                 isAutomationEnabled = settingsData.isAutomationEnabled,
+                isAppVersionSupported = settingsData.isAppVersionSupported,
                 lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt,
                 selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
                 selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
@@ -56,6 +57,11 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.getSettings().collect { settingsData ->
                 _state.value = state.value.copy(
+                    token = settingsData.token,
+                    isConnected = settingsData.isConnected,
+                    isAutomationEnabled = settingsData.isAutomationEnabled,
+                    isAppVersionSupported = settingsData.isAppVersionSupported,
+                    lastSuccessfulPingAt = settingsData.lastSuccessfulPingAt,
                     selectedSmsSenders = SourceFilter.normalizeSources(settingsData.selectedSmsSenders),
                     selectedBankApplications = SourceFilter.normalizeSources(settingsData.selectedBankApplications),
                     knownSmsSenders = SourceFilter.normalizeSources(settingsData.knownSmsSenders),
@@ -181,6 +187,7 @@ class MainViewModel @Inject constructor(
     }
 
     private fun onToggleAutomation() {
+        if (!state.value.isAppVersionSupported) return
         viewModelScope.launch {
             val targetState: Boolean = toggleAutomationUseCase()
             _state.value = state.value.copy(isAutomationEnabled = targetState)

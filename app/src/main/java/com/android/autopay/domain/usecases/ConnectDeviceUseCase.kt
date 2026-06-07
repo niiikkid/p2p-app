@@ -21,6 +21,7 @@ class ConnectDeviceUseCase @Inject constructor(
                 token = token,
                 isConnected = true,
                 isAutomationEnabled = currentSettings.isAutomationEnabled,
+                isAppVersionSupported = currentSettings.isAppVersionSupported,
                 lastSuccessfulPingAt = currentSettings.lastSuccessfulPingAt,
                 selectedSmsSenders = SourceFilter.normalizeSources(currentSettings.selectedSmsSenders),
                 selectedBankApplications = SourceFilter.normalizeSources(currentSettings.selectedBankApplications),

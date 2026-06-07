@@ -336,6 +336,7 @@ private fun DashboardSection(
         Spacer(modifier = Modifier.height(SectionSpacing))
         AutomationToggleCard(
             isAutomationEnabled = state.isAutomationEnabled,
+            isAppVersionSupported = state.isAppVersionSupported,
             onToggleAutomation = { onIntent(MainContract.Intent.ToggleAutomation) }
         )
     }
@@ -419,6 +420,13 @@ private fun DashboardSummaryCard(state: MainContract.State) {
                 value = if (state.isAutomationEnabled) "Включена" else "Выключена",
                 valueColor = if (state.isAutomationEnabled) DarkGreen else Color.Red
             )
+            if (!state.isAppVersionSupported) {
+                Text(
+                    text = "Ваше приложение устарело. Обновите приложение, чтобы снова включить автоматику.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Red
+                )
+            }
         }
     }
 }
@@ -426,6 +434,7 @@ private fun DashboardSummaryCard(state: MainContract.State) {
 @Composable
 private fun AutomationToggleCard(
     isAutomationEnabled: Boolean,
+    isAppVersionSupported: Boolean,
     onToggleAutomation: () -> Unit
 ) {
     AppSectionCard {
@@ -440,8 +449,16 @@ private fun AutomationToggleCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = automationStatusColor
             )
+            if (!isAppVersionSupported) {
+                Text(
+                    text = "Ваше приложение устарело и его надо обновить.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Red
+                )
+            }
             Button(
                 onClick = onToggleAutomation,
+                enabled = isAppVersionSupported,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()

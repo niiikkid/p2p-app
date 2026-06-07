@@ -24,6 +24,10 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStoreManager.saveAutomationEnabled(isEnabled)
     }
 
+    override suspend fun saveAppVersionSupported(isSupported: Boolean) {
+        dataStoreManager.saveAppVersionSupported(isSupported)
+    }
+
     override suspend fun saveSelectedSmsSenders(senders: Set<String>) {
         dataStoreManager.saveSelectedSmsSenders(senders)
     }

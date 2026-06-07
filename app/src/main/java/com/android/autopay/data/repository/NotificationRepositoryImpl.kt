@@ -14,6 +14,7 @@ import com.android.autopay.data.models.mappers.toNotification
 import com.android.autopay.data.models.mappers.toUnsentNotificationDBO
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
+import com.android.autopay.domain.models.PingResult
 import com.android.autopay.domain.repository.NotificationRepository
 import com.android.autopay.domain.repository.SettingsRepository
 import com.android.autopay.utils.AppDispatchers
@@ -45,13 +46,13 @@ class NotificationRepositoryImpl @Inject constructor(
         return notificationApi.connect(token, payload)
     }
 
-    override suspend fun pingServer(token: String): Result<Unit> {
+    override suspend fun pingServer(token: String): Result<PingResult> {
         return notificationApi.ping(token)
     }
 
     override suspend fun sendToServer(notification: Notification): Result<Unit> {
         val settings = settingsRepository.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank()) {
+        if (!settings.isConnected || settings.token.isBlank() || !settings.isAppVersionSupported) {
             return Result.failure(IllegalStateException("App is not connected"))
         }
         return notificationApi.sendNotification(settings.token, notification)

@@ -8,6 +8,7 @@ interface SettingsRepository {
     suspend fun saveSettings(settingsData: SettingsData)
     suspend fun saveLastSuccessfulPingAt(timestampMs: Long)
     suspend fun saveAutomationEnabled(isEnabled: Boolean)
+    suspend fun saveAppVersionSupported(isSupported: Boolean)
     suspend fun saveSelectedSmsSenders(senders: Set<String>)
     suspend fun saveSelectedBankApplications(packageNames: Set<String>)
     suspend fun addKnownSmsSender(sender: String)

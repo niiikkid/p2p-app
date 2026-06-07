@@ -4,6 +4,7 @@ data class SettingsData(
     val token: String,
     val isConnected: Boolean,
     val isAutomationEnabled: Boolean = true,
+    val isAppVersionSupported: Boolean = true,
     val lastSuccessfulPingAt: Long = 0L,
     val selectedSmsSenders: Set<String> = emptySet(),
     val selectedBankApplications: Set<String> = emptySet(),

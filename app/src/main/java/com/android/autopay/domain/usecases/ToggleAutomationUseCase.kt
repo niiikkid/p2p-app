@@ -10,6 +10,10 @@ class ToggleAutomationUseCase @Inject constructor(
 
     suspend operator fun invoke(): Boolean {
         val currentSettings = settingsRepository.getSettings().first()
+        if (!currentSettings.isAppVersionSupported) {
+            settingsRepository.saveAutomationEnabled(false)
+            return false
+        }
         val targetState: Boolean = !currentSettings.isAutomationEnabled
         settingsRepository.saveAutomationEnabled(targetState)
         return targetState

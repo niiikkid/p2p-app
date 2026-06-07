@@ -51,6 +51,8 @@ android {
         val dotEnvApiHost: String? = dotEnv["API_HOST"]?.trim()?.takeIf { it.isNotBlank() }
         val envAppTitle: String? = System.getenv("APP_TITLE")?.trim()?.takeIf { it.isNotBlank() }
         val dotEnvAppTitle: String? = dotEnv["APP_TITLE"]?.trim()?.takeIf { it.isNotBlank() }
+        val envAppVersion: String? = System.getenv("APP_VERSION")?.trim()?.takeIf { it.isNotBlank() }
+        val dotEnvAppVersion: String? = dotEnv["APP_VERSION"]?.trim()?.takeIf { it.isNotBlank() }
         val envNotificationDebugMode: String? = System.getenv("NOTIFICATION_DEBUG_MODE")?.trim()?.takeIf { it.isNotBlank() }
         val dotEnvNotificationDebugMode: String? = dotEnv["NOTIFICATION_DEBUG_MODE"]?.trim()?.takeIf { it.isNotBlank() }
         val localProps: Properties = Properties()
@@ -60,10 +62,12 @@ android {
         }
         val localPropsApiHost: String? = localProps.getProperty("API_HOST")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
         val localPropsAppTitle: String? = localProps.getProperty("APP_TITLE")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
+        val localPropsAppVersion: String? = localProps.getProperty("APP_VERSION")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
         val localPropsNotificationDebugMode: String? = localProps.getProperty("NOTIFICATION_DEBUG_MODE")?.trim()?.takeIf { candidate -> candidate.isNotBlank() }
         val apiHost: String = (envApiHost ?: dotEnvApiHost ?: localPropsApiHost)
             ?: throw GradleException("API_HOST is required. Provide it via ENV, .env or local.properties")
         val appTitle: String = envAppTitle ?: dotEnvAppTitle ?: localPropsAppTitle ?: "P2P Bridge"
+        val appVersion: String = envAppVersion ?: dotEnvAppVersion ?: localPropsAppVersion ?: "1.0.0"
         val notificationDebugMode: Boolean = (
             envNotificationDebugMode
                 ?: dotEnvNotificationDebugMode
@@ -72,6 +76,7 @@ android {
             ).toBoolean()
         buildConfigField("String", "API_HOST", "\"$apiHost\"")
         buildConfigField("String", "APP_TITLE", "\"$appTitle\"")
+        buildConfigField("String", "APP_VERSION", "\"$appVersion\"")
         buildConfigField("boolean", "NOTIFICATION_DEBUG_MODE", notificationDebugMode.toString())
     }
 

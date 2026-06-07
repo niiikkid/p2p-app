@@ -19,7 +19,7 @@ class RetryPendingNotificationsUseCase @Inject constructor(
 
     suspend operator fun invoke(): Result = coroutineScope {
         val settings = settingsRepository.getSettings().first()
-        if (!settings.isAutomationEnabled || !settings.isConnected || settings.token.isBlank()) {
+        if (!settings.isAutomationEnabled || !settings.isConnected || settings.token.isBlank() || !settings.isAppVersionSupported) {
             return@coroutineScope Result.NothingToDo
         }
         val pending: List<Notification> = notificationRepository.getForRetry()

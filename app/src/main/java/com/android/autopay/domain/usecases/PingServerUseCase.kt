@@ -1,5 +1,7 @@
 package com.android.autopay.domain.usecases
 
+import com.android.autopay.BuildConfig
+import com.android.autopay.domain.models.PingResult
 import com.android.autopay.domain.repository.NotificationRepository
 import com.android.autopay.domain.repository.SettingsRepository
 import kotlinx.coroutines.flow.first
@@ -12,13 +14,20 @@ class PingServerUseCase @Inject constructor(
 
     suspend operator fun invoke(): Result<Unit> {
         val settings = settingsRepository.getSettings().first()
-        if (!settings.isConnected || settings.token.isBlank() || !settings.isAutomationEnabled) {
+        if (!settings.isConnected || settings.token.isBlank()) {
             return Result.success(Unit)
         }
-        val pingResult: Result<Unit> = notificationRepository.pingServer(settings.token)
+        val pingResult: Result<PingResult> = notificationRepository.pingServer(settings.token)
         if (pingResult.isSuccess) {
+            val serverAppVersion: String = pingResult.getOrThrow().androidAppVersion
+            val isAppVersionSupported: Boolean = serverAppVersion == BuildConfig.APP_VERSION.trim()
+            settingsRepository.saveAppVersionSupported(isAppVersionSupported)
+            if (!isAppVersionSupported) {
+                settingsRepository.saveAutomationEnabled(false)
+                return Result.success(Unit)
+            }
             settingsRepository.saveLastSuccessfulPingAt(System.currentTimeMillis())
         }
-        return pingResult
+        return pingResult.map { }
     }
 }
