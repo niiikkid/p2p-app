@@ -10,3 +10,5 @@ const val PING_WORK_NAME: String = "device_ping_worker"
 const val PING_INTERVAL_SECONDS: Long = 5
 const val RETRY_INTERVAL_SECONDS: Long = 10
 const val NOTIFICATION_MAX_AGE_MS: Long = 30L * 60L * 1000L
+const val NOTIFICATION_CLEANUP_INTERVAL_SECONDS: Long = 180
+const val NOTIFICATION_CLEANUP_MIN_AGE_MS: Long = 15L * 1000L

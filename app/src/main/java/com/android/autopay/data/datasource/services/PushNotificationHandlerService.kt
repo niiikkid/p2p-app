@@ -28,6 +28,8 @@ import com.android.autopay.utils.AppDispatchers
 import com.android.autopay.utils.NotificationFreshness
 import com.android.autopay.utils.FOREGROUND_NOTIFICATION_CHANNEL_ID
 import com.android.autopay.utils.FOREGROUND_NOTIFICATION_ID
+import com.android.autopay.utils.NOTIFICATION_CLEANUP_INTERVAL_SECONDS
+import com.android.autopay.utils.NOTIFICATION_CLEANUP_MIN_AGE_MS
 import com.android.autopay.utils.PING_INTERVAL_SECONDS
 import com.android.autopay.utils.PUSH_MESSAGE_SEPARATOR
 import com.android.autopay.utils.RETRY_INTERVAL_SECONDS
@@ -68,6 +70,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
     private val scope by lazy { CoroutineScope(appDispatchers.io) }
     private var pingJob: Job? = null
     private var retryJob: Job? = null
+    private var cleanupJob: Job? = null
     private val processedPushFingerprints: LinkedHashSet<String> = linkedSetOf()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -84,6 +87,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         }
         startPingLoop()
         startRetryLoop()
+        startNotificationCleanupLoop()
         return START_STICKY
     }
 
@@ -633,6 +637,55 @@ class PushNotificationHandlerService : NotificationListenerService() {
         }
     }
 
+    private fun startNotificationCleanupLoop() {
+        if (cleanupJob?.isActive == true) return
+        cleanupJob = scope.launch {
+            while (isActive) {
+                delay(NOTIFICATION_CLEANUP_INTERVAL_SECONDS * MILLIS_IN_SECOND)
+                try {
+                    val settings: SettingsData = settingsRepository.getSettings().first()
+                    if (!settings.isAutomationEnabled || !settings.isAppVersionSupported || !settings.isAppVersionChecked) continue
+                    clearBankNotifications(settings)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Cleanup loop error: ${e.message}", e)
+                }
+            }
+        }
+    }
+
+    // Периодически убирает уже обработанные push-уведомления банков из шторки. Накопление уведомлений
+    // в шторке приводит к тому, что новые push перестают приходить и автоматика не может закрывать сделки.
+    private fun clearBankNotifications(settings: SettingsData) {
+        val now: Long = System.currentTimeMillis()
+        val cancelledKeys: List<String> = getActiveNotificationsSafe()
+            .filter { notification -> isClearableBankNotification(notification, settings, now) }
+            .map { notification -> notification.key }
+        if (cancelledKeys.isEmpty()) return
+        cancelBankNotifications(cancelledKeys)
+        Log.d(TAG, "Cleared ${cancelledKeys.size} bank notifications from the shade")
+    }
+
+    private fun isClearableBankNotification(
+        sbn: StatusBarNotification,
+        settings: SettingsData,
+        nowMs: Long
+    ): Boolean {
+        val packageName: String = sbn.packageName
+        if (!isExternalSource(packageName)) return false
+        if (!sbn.isClearable || sbn.isOngoing) return false
+        if (!SourceFilter.isBankApplicationAllowed(packageName, settings.selectedBankApplications)) return false
+        // Свежие уведомления не трогаем, чтобы их успел обработать onNotificationPosted.
+        return nowMs - sbn.postTime >= NOTIFICATION_CLEANUP_MIN_AGE_MS
+    }
+
+    private fun cancelBankNotifications(keys: List<String>) {
+        try {
+            cancelNotifications(keys.toTypedArray())
+        } catch (e: Exception) {
+            Log.d(TAG, "Unable to cancel bank notifications: ${e.message}", e)
+        }
+    }
+
     override fun onListenerDisconnected() {
         requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))
     }
@@ -650,6 +703,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
     override fun onDestroy() {
         pingJob?.cancel()
         retryJob?.cancel()
+        cleanupJob?.cancel()
         super.onDestroy()
     }
 
