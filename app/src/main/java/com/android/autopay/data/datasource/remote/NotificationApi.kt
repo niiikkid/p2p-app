@@ -13,8 +13,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.IOException
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class NotificationApi @Inject constructor(
     private val httpClient: OkHttpClient,
@@ -101,7 +101,11 @@ class NotificationApi @Inject constructor(
                     val errorBody: String = response.body?.string().orEmpty()
                     Result.failure(errorMapper(errorBody, response.code))
                 }
-            } catch (e: IOException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Не только IOException: битый URL, ошибки интерсепторов, неожиданные
+                // RuntimeException не должны ронять вызывающую корутину.
                 Result.failure(e)
             }
         }
@@ -127,7 +131,9 @@ class NotificationApi @Inject constructor(
                     }
                     Result.failure(Exception(response.code.toString()))
                 }
-            } catch (e: IOException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 Result.failure(e)
             }
         }

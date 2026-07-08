@@ -121,7 +121,7 @@ class MainViewModel @Inject constructor(
                     androidVersion = Build.VERSION.RELEASE,
                     apiLevel = Build.VERSION.SDK_INT.toString(),
                     buildNumber = Build.DISPLAY,
-                    cpuAbi = Build.SUPPORTED_ABIS[0]
+                    cpuAbi = Build.SUPPORTED_ABIS?.firstOrNull().orEmpty()
                 )
             )
         }

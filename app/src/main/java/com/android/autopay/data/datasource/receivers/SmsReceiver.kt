@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import android.telephony.SmsMessage
 import android.util.Log
 import com.android.autopay.domain.models.Notification
 import com.android.autopay.domain.models.NotificationType
@@ -14,7 +15,9 @@ import com.android.autopay.utils.AppDispatchers
 import com.android.autopay.utils.SourceFilter
 import com.android.autopay.utils.StableId
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +34,12 @@ class SmsReceiver : BroadcastReceiver() {
     @Inject
     lateinit var appDispatchers: AppDispatchers
 
-    private val scope by lazy { CoroutineScope(appDispatchers.io) }
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.d(TAG, "Unhandled SMS coroutine error: ${throwable.message}", throwable)
+    }
+    private val scope by lazy {
+        CoroutineScope(SupervisorJob() + appDispatchers.io + coroutineExceptionHandler)
+    }
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
@@ -40,13 +48,13 @@ class SmsReceiver : BroadcastReceiver() {
             val settings = settingsRepository.getSettings().first()
             if (!settings.isAutomationEnabled || !settings.isAppVersionSupported || !settings.isAppVersionChecked) return@launch
             // This branch only handles real SMS broadcasts. Push notifications from bank apps are handled by NotificationListenerService.
-            val messages = Telephony.Sms.Intents.getMessagesFromIntent(smsIntent)
+            val messages: List<SmsMessage> = extractMessages(smsIntent)
             if (messages.isEmpty()) {
                 Log.d(TAG, "SMS broadcast skipped: no message segments")
                 return@launch
             }
             val originatingAddress: String = messages[0].originatingAddress ?: UNKNOWN_SENDER
-            val fullMessage: String = messages.joinToString(separator = "") { it.messageBody }
+            val fullMessage: String = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
             Log.d(
                 TAG,
                 "Received raw SMS broadcast: sender=$originatingAddress, " +
@@ -69,6 +77,20 @@ class SmsReceiver : BroadcastReceiver() {
             Log.d(TAG, "Received SMS: sender=${notification.sender}")
             sendNotificationUseCase(notification)
                 .onFailure { error -> Log.d(TAG, "SMS send failed: ${error.message}") }
+        }
+    }
+
+    // Некорректный или неполный SMS-broadcast (битые PDU, отсутствие сегментов) может
+    // вернуть null или бросить исключение внутри платформенного парсера. Оборачиваем,
+    // чтобы одно плохое сообщение не приводило к сбою обработки.
+    private fun extractMessages(intent: Intent): List<SmsMessage> {
+        return try {
+            Telephony.Sms.Intents.getMessagesFromIntent(intent)
+                ?.filterNotNull()
+                .orEmpty()
+        } catch (e: Exception) {
+            Log.d(TAG, "Unable to parse SMS messages: ${e.message}", e)
+            emptyList()
         }
     }
 

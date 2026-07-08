@@ -36,8 +36,11 @@ import com.android.autopay.utils.RETRY_INTERVAL_SECONDS
 import com.android.autopay.utils.SourceFilter
 import com.android.autopay.utils.StableId
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -67,28 +70,47 @@ class PushNotificationHandlerService : NotificationListenerService() {
     @Inject
     lateinit var pingServerUseCase: PingServerUseCase
 
-    private val scope by lazy { CoroutineScope(appDispatchers.io) }
+    // Перехватываем любые непредвиденные исключения из корутин, чтобы падение одной задачи
+    // не крашило весь процесс и не отключало остальные циклы (ping/retry/cleanup).
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.d(TAG, "Unhandled coroutine error: ${throwable.message}", throwable)
+    }
+    private val scope by lazy {
+        CoroutineScope(SupervisorJob() + appDispatchers.io + coroutineExceptionHandler)
+    }
     private var pingJob: Job? = null
     private var retryJob: Job? = null
     private var cleanupJob: Job? = null
     private val processedPushFingerprints: LinkedHashSet<String> = linkedSetOf()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        createNotificationChannel()
-        val notification = NotificationCompat.Builder(this, FOREGROUND_NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("Получение уведомлений")
-            .setContentText("Получение входящих Push-уведомлений")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(FOREGROUND_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(FOREGROUND_NOTIFICATION_ID, notification)
-        }
+        startForegroundSafely()
         startPingLoop()
         startRetryLoop()
         startNotificationCleanupLoop()
         return START_STICKY
+    }
+
+    // На Android 12+ старт foreground-сервиса из фонового контекста может бросить
+    // ForegroundServiceStartNotAllowedException, а на Android 14 — ошибки типа сервиса.
+    // Ловим их, чтобы система не убивала процесс: NotificationListenerService всё равно
+    // остаётся привязанным и продолжает получать уведомления.
+    private fun startForegroundSafely() {
+        try {
+            createNotificationChannel()
+            val notification = NotificationCompat.Builder(this, FOREGROUND_NOTIFICATION_CHANNEL_ID)
+                .setContentTitle("Получение уведомлений")
+                .setContentText("Получение входящих Push-уведомлений")
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .build()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(FOREGROUND_NOTIFICATION_ID, notification, FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Unable to start foreground service: ${e.message}", e)
+        }
     }
 
     override fun onListenerConnected() {
@@ -687,15 +709,23 @@ class PushNotificationHandlerService : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
-        requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))
+        try {
+            requestRebind(ComponentName(this, PushNotificationHandlerService::class.java))
+        } catch (e: Exception) {
+            Log.d(TAG, "Unable to request listener rebind: ${e.message}", e)
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val restartIntent = Intent(applicationContext, PushNotificationHandlerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            applicationContext.startForegroundService(restartIntent)
-        } else {
-            applicationContext.startService(restartIntent)
+        try {
+            val restartIntent = Intent(applicationContext, PushNotificationHandlerService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(restartIntent)
+            } else {
+                applicationContext.startService(restartIntent)
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Unable to restart service on task removed: ${e.message}", e)
         }
         super.onTaskRemoved(rootIntent)
     }
@@ -704,6 +734,7 @@ class PushNotificationHandlerService : NotificationListenerService() {
         pingJob?.cancel()
         retryJob?.cancel()
         cleanupJob?.cancel()
+        scope.cancel()
         super.onDestroy()
     }
 

@@ -27,6 +27,7 @@ abstract class NotificationDatabase : RoomDatabase() {
                     DB_NAME
                 )
                     .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 return instance
